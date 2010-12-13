@@ -1,7 +1,7 @@
-#ifndef INC__TT_SEMAPHORE_H__
-#define INC__TT_SEMAPHORE_H__
+#ifndef	INC__TT_SEMAPHORE_H__
+#define	INC__TT_SEMAPHORE_H__
 
-
+#ifdef	TT_SUPPORT_SEMAPHORE
 
 typedef struct
 {
@@ -17,6 +17,5 @@ int tt_sem_try_down (TT_SEM_T *sem);
 int tt_sem_can_down (TT_SEM_T *sem);
 void tt_sem_up (TT_SEM_T *sem);
 
-
-
-#endif
+#endif	// TT_SUPPORT_SEMAPHORE
+#endif	// INC__TT_SEMAPHORE_H__

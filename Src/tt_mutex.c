@@ -1,6 +1,6 @@
 #include "../Inc/tt_thread.h"
 
-
+#ifdef	TT_SUPPORT_MUTEX
 
 /* Available in: irq, thread. */
 void tt_mutex_init (TT_MUTEX_T *mutex)
@@ -232,7 +232,7 @@ static void __tt_mutex_lock__helper (void *arg)
 	__tt_mutex_lock (mutex, thread);
 }
 
-/* Available in: irq, thread. */
+/* Available in: thread. */
 void tt_mutex_lock (TT_MUTEX_T *mutex)
 {
 	tt_syscall ((void *)mutex, __tt_mutex_lock__helper);
@@ -266,14 +266,7 @@ int tt_mutex_try_lock (TT_MUTEX_T *mutex)
 	__TRY_LOCK_T try_args;
 	try_args.mutex = mutex;
 
-	if (sysIsInIRQ ())
-	{
-		__tt_mutex_try_lock ((void *) &try_args);
-	}
-	else
-	{
-		tt_syscall ((void *) &try_args, __tt_mutex_try_lock);
-	}
+	tt_syscall ((void *) &try_args, __tt_mutex_try_lock);
 	return try_args.result;
 }
 
@@ -365,6 +358,6 @@ void tt_mutex_unlock (TT_MUTEX_T *mutex)
 	tt_syscall ((void *)mutex, __tt_mutex_unlock__helper);
 }
 
-
+#endif	// TT_SUPPORT_MUTEX
 
 

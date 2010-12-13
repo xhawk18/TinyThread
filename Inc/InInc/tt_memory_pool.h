@@ -31,7 +31,7 @@ LIST_T *pMemListHeader = memInit (
 
 
 /* Initialize a memory pool by connecting the memory blocks with list structure. */
-__inline LIST_T *__memInit (void *pBuffer, size_t szBuffer, size_t szEach,
+__INLINE LIST_T *__memInit (void *pBuffer, size_t szBuffer, size_t szEach,
 	size_t szListOffset)
 {
 	if (szBuffer < sizeof (LIST_T))
@@ -59,7 +59,7 @@ __inline LIST_T *__memInit (void *pBuffer, size_t szBuffer, size_t szEach,
 
 
 /* Allocate a memory blocks from a list structure. */
-__inline LIST_T *memNew (void *pBuffer)
+__INLINE LIST_T *memNew (void *pBuffer)
 {
 	LIST_T *pReturn;
 	LIST_T *pListHead = (LIST_T *) pBuffer;
@@ -78,7 +78,7 @@ __inline LIST_T *memNew (void *pBuffer)
 
 
 /* Free a memory blocks (to the list structure). */
-__inline void memDel (void *pBuffer, LIST_T *pListThis)
+__INLINE void memDel (void *pBuffer, LIST_T *pListThis)
 {
 	LIST_T *pListHead = (LIST_T *) pBuffer;
 	listAttach (pListHead, pListThis);
@@ -86,14 +86,14 @@ __inline void memDel (void *pBuffer, LIST_T *pListThis)
 
 
 /* Get the memory block. */
-__inline LIST_T *memGet (void *pBuffer, int nIndex)
+__INLINE LIST_T *memGet (void *pBuffer, int nIndex)
 {
 	LIST_T *pListHead = (LIST_T *) pBuffer;
 	return listGetAt (pListHead, nIndex);
 }
 
 /* Get number of memory blocks. */
-__inline int memNum (void *pBuffer)
+__INLINE int memNum (void *pBuffer)
 {
 	LIST_T *pListHead = (LIST_T *) pBuffer;
 	return listLength (pListHead);

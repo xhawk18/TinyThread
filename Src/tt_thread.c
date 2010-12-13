@@ -1,61 +1,59 @@
 #include "../Inc/tt_thread.h"
 
-
-#define IRQ_STACK_SIZE		512
-#define THREAD_PRIORITY_NUM	10
 #define TCB_AT(thread_buf_addr,thread_buf_size) \
 	(((uint32_t)(thread_buf_addr) + (thread_buf_size) - sizeof (TT_THREAD_T)) / 4 * 4)
 
-static unsigned int	irq_stack[IRQ_STACK_SIZE / sizeof(unsigned int)];
+static unsigned int	irq_stack[TT_IRQ_STACK_SIZE / sizeof(unsigned int)];
 static LIST_T		g_all_threads;
-static LIST_T		g_athread_running[THREAD_PRIORITY_NUM];
+static LIST_T		g_athread_running[TT_THREAD_PRIORITY_NUM];
 TT_THREAD_T			*g_thread_current;
 TT_THREAD_T			*g_thread_next;
 static TT_THREAD_T	g_thread_main;
-static uint32_t		g_thread_nop_buffer[TT_THREAD_BUFFER_SIZE (20) / sizeof (uint32_t)];
+//static uint32_t		g_thread_nop_buffer[TT_THREAD_BUFFER_SIZE (8) / sizeof (uint32_t)];
 
-static void tt_create_thread_nop (void);
+//static void tt_create_thread_nop (void);
 static void tt_init_thread_main (void);
 
 
 
 static void tt_use_PSP(unsigned int irq_stack_addr)
 {
-	__set_PRIMASK(1);
 	__set_PSP(__get_MSP());
 	__set_MSP(irq_stack_addr);
 	__set_CONTROL(2);
 	__ISB();
-	__set_PRIMASK(0);
 }
 
 
-void tt_init ()
+void tt_init (uint32_t systick_frequency)
 {
 	int i;
 
-	tt_use_PSP((unsigned int)irq_stack + sizeof(irq_stack));
+	sysDisableIRQ();
+    
+    tt_use_PSP((unsigned int)irq_stack + sizeof(irq_stack));
 			
 	listInit (&g_all_threads);
-	for (i = 0; i < THREAD_PRIORITY_NUM; i++)
+	for (i = 0; i < TT_THREAD_PRIORITY_NUM; i++)
 	{
 		listInit (&g_athread_running[i]);
 	}
-	//g_thread_current = NULL;
-	tt_create_thread_nop ();
+	g_thread_current = NULL;
+	//tt_create_thread_nop ();
 	tt_init_thread_main ();
 
 	/* Enable timer to start schedule. */
-	tt_timer_init ();
+	tt_timer_init (systick_frequency);
+    sysEnableIRQ();
 	
 #if 0	/* Useless code! */	
 	/* Call tt_exit_thread after main(). */
 	atexit (tt_thread_exit);
 #endif
 
-#ifdef TT_ENABLE_USLEEP
+#ifdef	TT_SUPPORT_USLEEP
 	tt_enable_usleep ();
-#endif
+#endif	// TT_SUPPORT_SLEEP
 }
 
 
@@ -78,13 +76,17 @@ static void __tt_thread_entry (void)
 
 static void tt_schedule_remove (void *arg)
 {
-#ifdef TT_DEBUG_DUMPTHREAD
+#ifdef	TT_SUPPORT_DUMP_THREAD
 	listDetach (&g_thread_current->list_threads);
-#endif
+#endif	// TT_SUPPORT_STACK_CHECK
+
 	listDetach (&g_thread_current->list_schedule);
 	g_thread_current->wait_parent = NULL;
+
+#ifdef	TT_SUPPORT_MUTEX
 	listDetach (&g_thread_current->list_wait_head);
 	listDetach (&g_thread_current->list_wait_node);
+#endif	// TT_SUPPORT_MUTEX
 
 	__tt_schedule ();
 }
@@ -97,20 +99,22 @@ static void tt_link_thread_to_system(const char *name, TT_THREAD_T *thread)
 
 	sysDisableIRQ ();
 
+#ifdef	TT_SUPPORT_MUTEX
 	thread->priority	= thread->fixed_priority;
+	listInit (&thread->list_wait_head);
+	listInit (&thread->list_wait_node);
+	thread->locked_by_mutex = false;
+#endif	// TT_SUPPORT_MUTEX
 
 	listInit (&thread->list_schedule);
 	listMove (&g_athread_running[thread->priority], &thread->list_schedule);
 	
-	listInit (&thread->list_wait_head);
-	listInit (&thread->list_wait_node);
 	thread->wait_parent = &g_athread_running;
-	thread->locked_by_mutex = false;
 
-#ifdef TT_DEBUG_DUMPTHREAD
+#ifdef	TT_SUPPORT_DUMP_THREAD
 	listInit (&thread->list_threads);
 	listMove (&g_all_threads, &thread->list_threads);
-#endif
+#endif	// TT_SUPPORT_STACK_CHECK
 
 
 	sysEnableIRQ ();
@@ -138,8 +142,8 @@ TT_THREAD_T *tt_thread_create (
 	
 	//if (priority < 0)
 	//	priority = 0;
-	if (priority >= THREAD_PRIORITY_NUM)
-		priority = THREAD_PRIORITY_NUM - 1;
+	if (priority >= TT_THREAD_PRIORITY_NUM)
+		priority = TT_THREAD_PRIORITY_NUM - 1;
 	
 	/* The buffer layout
 	     (stack_limit) <-- stack area --> (stack_base) <-- TT_THREAD_T --> (buffer_end)
@@ -151,12 +155,17 @@ TT_THREAD_T *tt_thread_create (
 	if (stack_base <= stack_limit)
 		return NULL;	//No stack size
 
-	//thread->thread_entry	= thread_entry;
-	//thread->thread_arg	= thread_arg;
+#ifdef	TT_SUPPORT_MUTEX
 	thread->fixed_priority	= priority;
+#else	// TT_SUPPORT_MUTEX
+	thread->priority = priority;
+#endif	// TT_SUPPORT_MUTEX
+
+#ifdef	TT_SUPPORT_STACK_CHECK
 	thread->stack_base		= (void *) stack_base;
 	thread->stack_max_used	= thread->stack_base;
 	thread->stack_limit		= (void *) stack_limit;
+#endif	// TT_SUPPORT_STACK_CHECK
 
 	thread->uSP = stack_base - sizeof(TT_THREAD_PUSH_STACK);
 		
@@ -188,13 +197,13 @@ void tt_thread_yield (void)
 	tt_syscall (NULL, __tt_schedule_yield);
 }
 
-
+#if 0
 static void tt_thread_nop_entry (void *arg)
 {
 	while (1)
 	{
 #if 1
-		__WFI;
+		__WFI();
 #else
 		static int nop_count = 0;
 		//sysSafePrintf ("In nop = %d!\n", nop_count++);
@@ -210,6 +219,7 @@ static void tt_create_thread_nop (void)
 	thread->wait_parent = NULL;
 	//sysSafePrintf("%d\n", sizeof(g_thread_nop_buffer));
 }
+#endif
 
 
 static void tt_init_thread_main (void)
@@ -219,10 +229,18 @@ static void tt_init_thread_main (void)
 	//sysSafePrintf("tt_main = %x\n", thread);
 	//thread->thread_entry	= 0;
 	//thread->thread_arg	= 0;
+
+#ifdef	TT_SUPPORT_MUTEX	
 	thread->fixed_priority	= 0;
+#else	// TT_SUPPORT_MUTEX
+	thread->priority = 0;
+#endif	// TT_SUPPORT_MUTEX
+
+#ifdef	TT_SUPPORT_STACK_CHECK
 	thread->stack_base		= (void *) 0;
 	thread->stack_max_used	= thread->stack_base;
 	thread->stack_limit		= (void *) 0;
+#endif	// TT_SUPPORT_STACK_CHECK
 
 	tt_link_thread_to_system("__tt_main", thread);
 
@@ -231,19 +249,18 @@ static void tt_init_thread_main (void)
 }
 
 
-/* Available in: irq. */
-void __tt_schedule (void)
+#ifdef	TT_SUPPORT_STACK_CHECK
+static void tt_check_stack(TT_THREAD_T *thread)
 {
-	unsigned char	priority;
-	TT_THREAD_T		*thread = g_thread_current;
-	
-#if 1	//Calculate max stack used.
+	if (thread == NULL)
+		return;
+
+	//Calculate max stack used.
 	if ((uint32_t) thread->stack_max_used == 0
 		|| (uint32_t) thread->stack_max_used > thread->uSP)
 		thread->stack_max_used = (void *) thread->uSP;
-#endif
 
-#if 1	//Check stack overflow
+	//Check stack overflow
 	if ((uint32_t) thread->stack_base > 0)	/* For main thread, do not check this. */
 	{
 		if (thread->uSP < (uint32_t) thread->stack_limit)
@@ -261,13 +278,24 @@ void __tt_schedule (void)
 			while(1);
 		}
 	}
-#endif
+}
+#endif	// TT_SUPPORT_STACK_CHECK
 
+/* Available in: irq. */
+void __tt_schedule (void)
+{
+	unsigned char	priority;
+	
+#ifdef	TT_SUPPORT_STACK_CHECK
+	/* Check if thread stack is healty */
+	tt_check_stack(g_thread_current);
+#endif	// TT_SUPPORT_STACK_CHECK
+
+#ifdef	TT_SUPPORT_SLEEP
 	__tt_wakeup ();
+#endif	// TT_SUPPORT_SLEEP
 
-	g_thread_next = g_thread_current;
-
-	for (priority = 0; priority < THREAD_PRIORITY_NUM; priority++)
+	for (priority = 0; priority < TT_THREAD_PRIORITY_NUM; priority++)
 	{
 		if (g_athread_running[priority].pNext != &g_athread_running[priority])
 		{
@@ -276,16 +304,15 @@ void __tt_schedule (void)
 			//sysSafePrintf("leng: %d\n", listLength(&g_athread_running[priority]));
 			//listMove (&g_athread_running[priority], pNext);
 			g_thread_next = GetParentAddr (pNext, TT_THREAD_T, list_schedule);
-			break;
+			return;
 		}
 	}
 	
-	if (priority >= THREAD_PRIORITY_NUM)
-	{/* No thread is running! */
-		g_thread_next = (TT_THREAD_T *) TCB_AT(g_thread_nop_buffer, sizeof(g_thread_nop_buffer));
-		//sysSafePrintf ("current: (%08x) %s\n", 	g_thread_current, g_thread_current->name);
-		//sysSafePrintf ("%08x %08x %08x\n", g_thread_current->uPC, g_thread_current->uLR, g_thread_current->uSP);
-	}
+	/* Run to here means no thread is running! */
+	g_thread_next = NULL;
+	//g_thread_next = (TT_THREAD_T *) TCB_AT(g_thread_nop_buffer, sizeof(g_thread_nop_buffer));
+	//sysSafePrintf ("current: (%08x) %s\n", 	g_thread_current, g_thread_current->name);
+	//sysSafePrintf ("%08x %08x %08x\n", g_thread_current->uPC, g_thread_current->uLR, g_thread_current->uSP);
 }
 
 
@@ -298,8 +325,11 @@ void tt_set_thread_running (TT_THREAD_T *thread)
 
 void __tt_schedule_yield (void *arg)
 {
-	listMove (g_thread_current->list_schedule.pPrev, &g_thread_current->list_schedule);
-	//listSwapBefore (&g_thread_current->list_schedule);	
+	if(g_thread_current != NULL)
+	{
+		listMove (g_thread_current->list_schedule.pPrev, &g_thread_current->list_schedule);
+		//listSwapBefore (&g_thread_current->list_schedule);
+	}	
 	__tt_schedule ();
 }
 
@@ -308,7 +338,9 @@ typedef struct
 {
 	TT_THREAD_T		*thread;
 	unsigned char	priority;
+#ifdef	TT_SUPPORT_MUTEX
 	bool			inherit;
+#endif	// TT_SUPPORT_MUTEX
 } __SET_PRIORITY_T;
 
 
@@ -329,11 +361,13 @@ static void __tt_set_priority (void *arg)
 		thread->priority = priority;
 	}
 
+#ifdef	TT_SUPPORT_MUTEX
 	if (set_priority_arg->inherit == false)
 		thread->fixed_priority = priority;
+#endif	// TT_SUPPORT_MUTEX
 }
 
-
+#ifdef	TT_SUPPORT_MUTEX
 void tt_set_priority_inherit (TT_THREAD_T *thread, unsigned char priority)
 {
 	__SET_PRIORITY_T set_priority_arg;
@@ -344,24 +378,30 @@ void tt_set_priority_inherit (TT_THREAD_T *thread, unsigned char priority)
 
 	//sysSafePrintf("Set inherit priority for %x to %d\n", thread, (int)priority);
 }
-
+#endif	// TT_SUPPORT_MUTEX
 
 void tt_set_priority (TT_THREAD_T *thread, unsigned char priority)
 {
 	__SET_PRIORITY_T set_priority_arg;
 	set_priority_arg.thread		= thread;
 	set_priority_arg.priority	= priority;
+#ifdef	TT_SUPPORT_MUTEX
 	set_priority_arg.inherit	= false;
+#endif	// TT_SUPPORT_MUTEX
 	tt_syscall ((void *) &set_priority_arg, __tt_set_priority);
 }
 
 unsigned char tt_get_priority (TT_THREAD_T *thread)
 {
+#ifdef	TT_SUPPORT_MUTEX
 	return thread->fixed_priority;
+#else	// TT_SUPPORT_MUTEX
+	return thread->priority;
+#endif	// TT_SUPPORT_MUTEX
 }
 
 
-#ifdef TT_DEBUG_DUMPTHREAD
+#ifdef	TT_SUPPORT_DUMP_THREAD
 void tt_dump_threads (void (*func_dump) (TT_THREAD_T *thread, void *arg), void *arg)
 {
 	LIST_T *list;
@@ -375,7 +415,5 @@ void tt_dump_threads (void (*func_dump) (TT_THREAD_T *thread, void *arg), void *
 	
 	sysEnableIRQ ();
 }
-#endif
-
-
+#endif	// TT_SUPPORT_DUMP_THREAD 
 

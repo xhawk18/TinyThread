@@ -1,7 +1,7 @@
-#ifndef INC__TT_MUTEX_H__
-#define INC__TT_MUTEX_H__
+#ifndef	INC__TT_MUTEX_H__
+#define	INC__TT_MUTEX_H__
 
-
+#ifdef	TT_SUPPORT_MUTEX
 
 typedef struct
 {
@@ -18,6 +18,5 @@ int tt_mutex_try_lock (TT_MUTEX_T *mutex);
 int tt_mutex_can_lock (TT_MUTEX_T *mutex);
 void tt_mutex_unlock (TT_MUTEX_T *mutex);
 
-
-#endif
-
+#endif	// TT_SUPPORT_MUTEX
+#endif	// INC__TT_MUTEX_H__

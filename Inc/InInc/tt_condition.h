@@ -1,6 +1,7 @@
-#ifndef INC__TT_CONDITION_H__
-#define INC__TT_CONDITION_H__
+#ifndef	INC__TT_CONDITION_H__
+#define	INC__TT_CONDITION_H__
 
+#ifdef	TT_SUPPORT_CONDITION
 
 typedef struct
 {
@@ -22,5 +23,5 @@ void tt_cond_signal (TT_COND_T *cond);
 /* Unblock all thread waiting on this condition */
 void tt_cond_broadcast (TT_COND_T *cond);
 
-
-#endif
+#endif	// TT_SUPPORT_CONDITION
+#endif	// INC__TT_CONDITION_H__
