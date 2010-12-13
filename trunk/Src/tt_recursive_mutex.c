@@ -1,5 +1,6 @@
 #include "../Inc/tt_thread.h"
 
+#ifdef	TT_SUPPORT_MUTEX
 
 /* Available in: irq, thread. */
 void tt_rmutex_init (TT_RMUTEX_T *rmutex)
@@ -68,4 +69,5 @@ void tt_rmutex_unlock (TT_RMUTEX_T *rmutex)
 	}
 }
 
+#endif	// TT_SUPPORT_MUTEX
 

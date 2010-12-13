@@ -1,5 +1,6 @@
 #include "../Inc/tt_thread.h"
 
+#ifdef TT_SUPPORT_CONDITION
 
 /* Available in: irq, thread. */
 void tt_cond_init (TT_COND_T *cond)
@@ -187,3 +188,4 @@ void tt_cond_broadcast (TT_COND_T *cond)
 	tt_cond_wakeup (cond, true);
 }
 
+#endif

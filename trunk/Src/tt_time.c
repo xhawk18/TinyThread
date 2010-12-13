@@ -3,22 +3,17 @@
 
 
 
+#ifdef	TT_SUPPORT_SLEEP
 static LIST_T	g_thread_sleeping;
-static uint64_t	g_current_ticks;
-static uint64_t	g_time_offset;	/* tt_set_time() only set this value */
-static void (*g_sysTick_handler) (void) = NULL;
-
-static void __tt_update_longticks (void)
-{
-	g_current_ticks++;
-	__tt_schedule_yield (NULL);
-}
+#endif	// TT_SUPPORT_SLEEP
+static volatile uint64_t	g_current_ticks;
+static volatile uint64_t	g_time_offset;	/* tt_set_time() only set this value */
 
 
 void __tt_on_timer()
 {
-	if(g_sysTick_handler != NULL)
-		(*g_sysTick_handler)();
+	g_current_ticks++;
+	__tt_schedule_yield (NULL);
 }
 
 
@@ -38,16 +33,13 @@ uint64_t tt_set_time (uint64_t new_time)
 }
 
 
-void tt_timer_init ()
+void tt_timer_init (uint32_t systick_frequency)
 {
+#ifdef	TT_SUPPORT_SLEEP
 	listInit (&g_thread_sleeping);
+#endif	// TT_SUPPORT_SLEEP
 
-	g_sysTick_handler = &__tt_update_longticks;
-
-#define SYS_INTERNAL_CLOCK		22000000
-//#define SYS_INTERNAL_CLOCK_SRC	7
-	//DrvSYS_SetSysTickSource(SYS_INTERNAL_CLOCK_SRC);
-	SysTick_Config(SYS_INTERNAL_CLOCK / TT_TICKS_PER_SECOND);
+	SysTick_Config(systick_frequency / TT_TICKS_PER_SECOND);
 }
 
 
@@ -80,6 +72,7 @@ uint32_t tt_msec_to_ticks (uint32_t msec)
 }
 
 
+#ifdef	TT_SUPPORT_SLEEP
 /* Available in: thread. */
 static void __tt_sleep (void *arg)
 {
@@ -143,11 +136,11 @@ void tt_msleep (uint32_t msec)
 		
 	tt_syscall ((void *) &sleep_ticks, __tt_sleep);
 }
+#endif	// TT_SUPPORT_SLEEP
 
 
 
-
-#ifdef TT_ENABLE_USLEEP
+#ifdef	TT_SUPPORT_USLEEP
 
 static uint32_t g_loop_per_minisec = 0;
 
@@ -155,7 +148,7 @@ static uint32_t g_loop_per_minisec = 0;
 void tt_enable_usleep (void)
 {
 	volatile uint32_t i;
-	volatile uint32_t loop = 1;
+	uint32_t loop = 1;
 	uint32_t ticks;
 	
 	do
@@ -181,9 +174,11 @@ void tt_enable_usleep (void)
 
 void tt_usleep (uint32_t usec)
 {
-	volatile uint32_t loop = (uint32_t) (g_loop_per_minisec * (uint64_t) usec / 1000);
+	uint32_t loop = (uint32_t) (g_loop_per_minisec * (uint64_t) usec / 1000);
 	volatile uint32_t i;
 	for (i = 0; i < loop; i++);
 }
 
-#endif
+#endif	// TT_SUPPORT_USLEEP
+
+int g_ticks;	//Just for test

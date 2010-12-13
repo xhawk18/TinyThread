@@ -21,7 +21,7 @@ typedef struct tagList
 	((tParent *)((char *)(pMe) - (int)&((tParent *)0)->eMyName))
 
 
-__inline void listInit (LIST_T *pList)
+__INLINE void listInit (LIST_T *pList)
 {
 	pList->pPrev = pList;
 	pList->pNext = pList;
@@ -35,7 +35,7 @@ __inline void listInit (LIST_T *pList)
 
 
 /* Connect two lists. */
-__inline void listConnect (LIST_T *pList1, LIST_T *pList2)
+__INLINE void listConnect (LIST_T *pList1, LIST_T *pList2)
 {
 	LIST_T *pPrev1 = pList1->pPrev;
 	LIST_T *pPrev2 = pList2->pPrev;
@@ -47,7 +47,7 @@ __inline void listConnect (LIST_T *pList1, LIST_T *pList2)
 
 
 /* Disconnect tow lists. */
-__inline void listDisconnect (LIST_T *pList1, LIST_T *pList2)
+__INLINE void listDisconnect (LIST_T *pList1, LIST_T *pList2)
 {
 	LIST_T *pPrev1 = pList1->pPrev;
 	LIST_T *pPrev2 = pList2->pPrev;
@@ -58,7 +58,7 @@ __inline void listDisconnect (LIST_T *pList1, LIST_T *pList2)
 }
 
 
-__inline void listSwapBefore (LIST_T *pNode)
+__INLINE void listSwapBefore (LIST_T *pNode)
 {
 	if (pNode->pPrev != pNode->pNext)
 	{
@@ -74,14 +74,14 @@ __inline void listSwapBefore (LIST_T *pNode)
 
 
 /* Same as listConnect */
-__inline void listAttach (LIST_T *pNode1, LIST_T *pNode2)
+__INLINE void listAttach (LIST_T *pNode1, LIST_T *pNode2)
 {
 	listConnect (pNode1, pNode2);
 }
 
 
 /* Make pNode in detach mode */
-__inline void listDetach (LIST_T *pNode)
+__INLINE void listDetach (LIST_T *pNode)
 {
 	listDisconnect (pNode, pNode->pNext);
 }
@@ -91,14 +91,14 @@ __inline void listDetach (LIST_T *pNode)
    pNode->pNext == pList
    pList->pPrev == pNode
  */
-__inline void listMove (LIST_T *pList, LIST_T *pNode)
+__INLINE void listMove (LIST_T *pList, LIST_T *pNode)
 {
 	listDetach (pNode);
 	listAttach (pList, pNode);
 }
 
 
-__inline void listForEach (LIST_T *pList, bool (*fnChecked)(LIST_T *pNode, void *pArg), void *pArg)
+__INLINE void listForEach (LIST_T *pList, bool (*fnChecked)(LIST_T *pNode, void *pArg), void *pArg)
 {
 	LIST_T *pNode;
 	for (pNode = pList->pNext; pNode != pList; pNode = pNode->pNext)
@@ -112,10 +112,10 @@ __inline void listForEach (LIST_T *pList, bool (*fnChecked)(LIST_T *pNode, void 
 /* Insert pNode into pList,
    pList should has already been sorted by (*bin_comp)(...),
  */
-__inline void listInsert (LIST_T *pList, LIST_T *pNode, bool (*bin_comp)(LIST_T *p1st, LIST_T *p2nd, void *pArg), void *pArg)
+__INLINE void listInsert (LIST_T *pList, LIST_T *pNode, bool (*bin_comp)(LIST_T *p1st, LIST_T *p2nd, void *pArg), void *pArg)
 {
 	LIST_T *pPrev;
-	for (pPrev = pList->pPrev; pNode != pList; pPrev = pPrev->pPrev)
+	for (pPrev = pList->pPrev; pPrev != pList; pPrev = pPrev->pPrev)
 	{
 		if ((bin_comp) (pNode, pPrev, pArg) != false)
 			break;
@@ -125,7 +125,7 @@ __inline void listInsert (LIST_T *pList, LIST_T *pNode, bool (*bin_comp)(LIST_T 
 }
 
 
-__inline int listLength (LIST_T *pList)
+__INLINE int listLength (LIST_T *pList)
 {
 	LIST_T *pNode;
 	int i = 0;
@@ -135,7 +135,7 @@ __inline int listLength (LIST_T *pList)
 }
 
 
-__inline LIST_T *listGetAt (LIST_T *pList, int nIndex)
+__INLINE LIST_T *listGetAt (LIST_T *pList, int nIndex)
 {
 	LIST_T *pNode;
 
@@ -152,7 +152,7 @@ __inline LIST_T *listGetAt (LIST_T *pList, int nIndex)
 }
 
 
-__inline bool listIsEmpty (LIST_T *pList)
+__INLINE bool listIsEmpty (LIST_T *pList)
 {
 	if (pList->pNext == pList)
 		return true;
@@ -161,7 +161,7 @@ __inline bool listIsEmpty (LIST_T *pList)
 }
 
 #ifdef DEBUG_DUMP_LIST
-static __inline void listDump (LIST_T *pList)
+static __INLINE void listDump (LIST_T *pList)
 {
 	LIST_T *p;
 	sysSafePrintf ("List: %d [ ", pList->index);

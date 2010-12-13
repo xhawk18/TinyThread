@@ -1,6 +1,7 @@
-#ifndef INC__TT_RECURSIVE_MUTEX_H__
-#define INC__TT_RECURSIVE_MUTEX_H__
+#ifndef	INC__TT_RECURSIVE_MUTEX_H__
+#define	INC__TT_RECURSIVE_MUTEX_H__
 
+#ifdef	TT_SUPPORT_MUTEX
 
 typedef struct
 {
@@ -16,4 +17,5 @@ int tt_rmutex_try_lock (TT_RMUTEX_T *rmutex);
 int tt_rmutex_can_lock (TT_RMUTEX_T *rmutex);
 void tt_rmutex_unlock (TT_RMUTEX_T *rmutex);
 
-#endif
+#endif	// TT_SUPPORT_MUTEX
+#endif	// INC__TT_RECURSIVE_MUTEX_H__

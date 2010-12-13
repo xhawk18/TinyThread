@@ -2,41 +2,17 @@
 #define INC_TT_SYS_H__
 
 
-#define PSR_MODE_MASK	0x1F
-#define PSR_MODE_FIQ	0x11
-#define PSR_MODE_IRQ	0x12
-#define PSR_IRQ_ENABLE	0x80
-#define PSR_FIQ_ENABLE	0x40
-
-
-
 extern int	g_iIRQ_disable_count;
 extern bool	g_bIRQ_real_disable;
 
+#define TT_SYS_NO_PRINTF
 
 
-
-__inline bool sysIsInIRQ (void)
-{
-#if 1
-	return false;
-#else
-	int tmp;
-	__asm
-	{
-		MRS tmp, CPSR;
-	}
-	tmp &= PSR_MODE_MASK;
-	
-	if (tmp == PSR_MODE_IRQ)
-		return true;
-	else
-		return false;
-#endif
-}
+/* Implement in tt_syscall.s */
+bool sysIsInIRQ (void);
 
 
-__inline bool sysIsIRQDisabled (void)
+__INLINE bool sysIsIRQDisabled (void)
 {
 	int primask = __get_PRIMASK ();
 	if ((primask & 1) == 0)
@@ -46,12 +22,14 @@ __inline bool sysIsIRQDisabled (void)
 }
 
 
-__inline void sysEnableIRQ (void)
+__INLINE void sysEnableIRQ (void)
 {
 	if (!sysIsIRQDisabled ())
 	{
 		__set_PRIMASK(1);
+#if !defined TT_SYS_NO_PRINTF
 		printf ("Not call sysDisableIRQ before sysEnableIRQ\n");
+#endif
 		while (1);
 	}
 
@@ -66,7 +44,7 @@ __inline void sysEnableIRQ (void)
 }
 
 
-__inline void sysDisableIRQ (void)
+__INLINE void sysDisableIRQ (void)
 {
 	if (sysIsIRQDisabled ())
 	{
@@ -85,15 +63,17 @@ __inline void sysDisableIRQ (void)
 
 
 #ifdef DEBUG_DUMP_IRQ
-__inline void sysDumpIRQ (void)
+__INLINE void sysDumpIRQ (void)
 {
+#if !defined TT_SYS_NO_PRINTF
 	printf ("IRQ level: %d\n", g_iIRQ_disable_count);
+#endif
 }
 #endif
 
 
-#define NO_PRINTF
-#if !defined NO_PRINTF
+
+#if !defined TT_SYS_NO_PRINTF
 #define sysSafePrintf(...) \
 do \
 { \

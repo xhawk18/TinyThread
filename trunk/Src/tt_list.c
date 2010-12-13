@@ -1,18 +1,8 @@
 #include <stdlib.h>
-#include "../Inc/InInc/tt_sys.h"
-#include "../Inc/InInc/list.h"
+#include <stdbool.h>
+#include "../Inc/InInc/tt_list.h"
 
 
-#ifdef DEBUG_DUMP_LIST
-static void listDump (LIST_T *pList)
-{
-	LIST_T *p;
-	sysSafePrintf ("List: %d [ ", pList->index);
-	for (p = pList->pNext; p != pList; p = p->pNext)
-		sysSafePrintf ("%d ", p->index);
-	sysSafePrintf ("]\n");
-}
-#endif
 
 
 
@@ -53,6 +43,20 @@ void listDisconnect (LIST_T *pList1, LIST_T *pList2)
 }
 
 
+void listSwapBefore (LIST_T *pNode)
+{
+	if (pNode->pPrev != pNode->pNext)
+	{
+		LIST_T *pPrev = pNode->pPrev;
+		pNode->pPrev		= pPrev->pPrev;
+		pPrev->pPrev->pNext	= pNode;
+		pPrev->pNext		= pNode->pNext;
+		pNode->pNext->pPrev	= pPrev;
+		pNode->pNext = pPrev;
+		pPrev->pPrev = pNode;
+	}
+}
+
 void listAttach (LIST_T *pNode1, LIST_T *pNode2)
 {
 	listConnect (pNode1, pNode2);
@@ -64,6 +68,42 @@ void listDetach (LIST_T *pNode)
 }
 
 
+/* Move pNode to pList, after moving,
+   pNode->pNext == pList
+   pList->pPrev == pNode
+ */
+void listMove (LIST_T *pList, LIST_T *pNode)
+{
+	listDetach (pNode);
+	listAttach (pList, pNode);
+}
+
+
+void listForEach (LIST_T *pList, bool (*fnChecked)(LIST_T *pNode, void *pArg), void *pArg)
+{
+	LIST_T *pNode;
+	for (pNode = pList->pNext; pNode != pList; pNode = pNode->pNext)
+	{
+		if ((*fnChecked)(pNode, pArg) != false)
+			break;
+	}
+}
+
+
+/* Insert pNode into pList,
+   pList should has already been sorted by (*bin_comp)(...),
+ */
+void listInsert (LIST_T *pList, LIST_T *pNode, bool (*bin_comp)(LIST_T *p1st, LIST_T *p2nd, void *pArg), void *pArg)
+{
+	LIST_T *pPrev;
+	for (pPrev = pList->pPrev; pPrev != pList; pPrev = pPrev->pPrev)
+	{
+		if ((bin_comp) (pNode, pPrev, pArg) != false)
+			break;
+	}
+	listDetach (pNode);
+	listAttach (pNode, pPrev);
+}
 int listLength (LIST_T *pList)
 {
 	LIST_T *pNode;
@@ -91,12 +131,22 @@ LIST_T *listGetAt (LIST_T *pList, int nIndex)
 }
 
 
-BOOL listIsEmpty (LIST_T *pList)
+bool listIsEmpty (LIST_T *pList)
 {
 	if (pList->pNext == pList)
-		return TRUE;
+		return true;
 	else
-		return FALSE;
+		return false;
 }
 
+#ifdef DEBUG_DUMP_LIST
+static void listDump (LIST_T *pList)
+{
+	LIST_T *p;
+	sysSafePrintf ("List: %d [ ", pList->index);
+	for (p = pList->pNext; p != pList; p = p->pNext)
+		sysSafePrintf ("%d ", p->index);
+	sysSafePrintf ("]\n");
+}
+#endif
 

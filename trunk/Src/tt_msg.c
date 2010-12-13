@@ -1,5 +1,6 @@
 #include "../Inc/tt_thread.h"
 
+#ifdef	TT_SUPPORT_MSG
 
 /* Available in: irq, thread. */
 void tt_pc_init (TT_PC_T *pc, int max_produce_count)
@@ -115,7 +116,7 @@ typedef struct
 	NULL, failed
 	other, the message pushed.
  */
-static __inline TT_MSG_T *tt_msg_push (TT_MSG_QUEUE_T *msg_queue, FUN_TT_MSG_PROC msg_proc, void *msg_data)
+static __INLINE TT_MSG_T *tt_msg_push (TT_MSG_QUEUE_T *msg_queue, FUN_TT_MSG_PROC msg_proc, void *msg_data)
 {
 	LIST_T *msg_node = memNew (msg_queue->msg_buffer);
 	if (msg_node == NULL)
@@ -130,7 +131,7 @@ static __inline TT_MSG_T *tt_msg_push (TT_MSG_QUEUE_T *msg_queue, FUN_TT_MSG_PRO
 	}
 }
 
-static __inline void tt_msg_produce (void *arg)
+static __INLINE void tt_msg_produce (void *arg)
 {
 	TT_MSG_PRODUCER_T *msg_producer = (TT_MSG_PRODUCER_T *) arg;
 	sysDisableIRQ ();
@@ -153,7 +154,7 @@ typedef struct
 	other, the message poped.
    Return pointer just indicates if a message was popped. Do not use it for other purpose.
  */
-static __inline TT_MSG_T *tt_msg_pop (TT_MSG_QUEUE_T *msg_queue, FUN_TT_MSG_PROC *msg_proc, void **msg_data)
+static __INLINE TT_MSG_T *tt_msg_pop (TT_MSG_QUEUE_T *msg_queue, FUN_TT_MSG_PROC *msg_proc, void **msg_data)
 {
 	LIST_T *msg_node = msg_queue->msg_used.pNext;
 	if (msg_node == &msg_queue->msg_used)
@@ -173,7 +174,7 @@ static __inline TT_MSG_T *tt_msg_pop (TT_MSG_QUEUE_T *msg_queue, FUN_TT_MSG_PROC
 	}
 }
 
-static __inline void tt_msg_consume (void *arg)
+static __INLINE void tt_msg_consume (void *arg)
 {
 	TT_MSG_CONSUMER_T *msg_consumer = (TT_MSG_CONSUMER_T *) arg;
 	sysDisableIRQ ();
@@ -256,6 +257,7 @@ int tt_msg_can_recv (TT_MSG_QUEUE_T *msg_queue)
 	return tt_pc_can_consume (&msg_queue->pc_semaphore);
 }
 
+#endif	// TT_SUPPORT_MSG
 
 
 

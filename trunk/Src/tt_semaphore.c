@@ -1,5 +1,6 @@
 #include "../Inc/tt_thread.h"
 
+#ifdef	TT_SUPPORT_SEMAPHORE
 
 /* Available in: irq, thread. */
 void tt_sem_init (TT_SEM_T *sem, unsigned int count)
@@ -84,19 +85,7 @@ int tt_sem_down_timeout (TT_SEM_T *sem, INT32 sleep_ticks)
 	sem_args.sem = sem;
 	sem_args.sleep_ticks = sleep_ticks;
 	
-	if (sysIsInIRQ ())
-	{
-		__tt_sem_down ((void *) &sem_args);
-		
-		if (sem_args.sem->count < 0)
-		{
-			sysSafePrintf ("Error: tt_sem_down wait on zero in a irq function!\n"
-				"SYSTEM HALT!!!");
-			while (1);
-		}
-	}
-	else
-		tt_syscall ((void *) &sem_args, __tt_sem_down_timeout);
+	tt_syscall ((void *) &sem_args, __tt_sem_down_timeout);
 
 	return sem_args.result;
 }
@@ -131,14 +120,7 @@ int tt_sem_try_down (TT_SEM_T *sem)
 	__TRY_DOWN_T try_args;
 	try_args.sem = sem;
 	
-	if (sysIsInIRQ ())
-	{
-		__tt_sem_trydown ((void *) &try_args);
-	}
-	else
-	{
-		tt_syscall ((void *) &try_args, __tt_sem_trydown);
-	}
+	tt_syscall ((void *) &try_args, __tt_sem_trydown);
 	return try_args.result;
 }
 
@@ -184,6 +166,5 @@ void tt_sem_up (TT_SEM_T *sem)
 	tt_syscall ((void *) sem, __tt_sem_up);
 }
 
-
-
+#endif	// TT_SUPPORT_SEMAPHORE
 
