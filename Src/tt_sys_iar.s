@@ -5,8 +5,14 @@
 ;/*---------------------------------------------------------------------------------------------------------*/
 
 
-; Vector Table Mapped to Address 0 at Reset
-;				AREA    |.text|, CODE, READONLY
+TT_DEBUG_THREAD_SWITCH_TIME	SET 0
+
+				IF TT_DEBUG_THREAD_SWITCH_TIME
+				SECTION .data:DATA:REORDER(2)       ; 4 bytes alignment
+g_ticks_before_schedule		DCD		0     
+				ENDIF
+
+
 				SECTION .text:CODE:REORDER(2)       ; 4 bytes alignment
 
 				THUMB
@@ -104,14 +110,13 @@ on_schedule
 				
 				MSR		PSP, R2					
 				
-
-
+				IF TT_DEBUG_THREAD_SWITCH_TIME
 				LDR		R0, =0xE000E018
 				LDR		R0,[R0]
-				IMPORT	g_ticks
-				LDR		R1, = g_ticks
+				LDR		R1, = g_ticks_before_schedule
 				LDR		R1, [R1]
-				SUBS	R0, R1, R0
+				SUBS	R0, R1, R0				; Now R0 is the thread switch time used
+				ENDIF
 				
 				BX		R3	; R3 is Current LR here
 
@@ -146,11 +151,12 @@ SysTick_Handler
 				;BLX		R1
 				;MOV		LR, R0
 
-				LDR		R0, =0xE000E018
+				IF TT_DEBUG_THREAD_SWITCH_TIME
+                                LDR		R0, =0xE000E018
 				LDR		R0,[R0]
-				IMPORT	g_ticks
-				LDR		R1, = g_ticks
+				LDR		R1, = g_ticks_before_schedule
 				STR		R0, [R1]
+                                ENDIF
 
 				IMPORT	__tt_on_timer
 				LDR		R1, =__tt_on_timer
