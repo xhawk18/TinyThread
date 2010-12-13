@@ -1,4 +1,4 @@
-#summary One-sentence summary of this page.
+#This page describes the resource of TinyThread.
 
 = Introduction =
 
