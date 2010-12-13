@@ -181,4 +181,3 @@ void tt_usleep (uint32_t usec)
 
 #endif	// TT_SUPPORT_USLEEP
 
-int g_ticks;	//Just for test

@@ -4,12 +4,18 @@
 ;/*                                                                                                         */
 ;/*---------------------------------------------------------------------------------------------------------*/
 
-				THUMB
+				GBLL	TT_DEBUG_THREAD_SWITCH_TIME
+TT_DEBUG_THREAD_SWITCH_TIME	SETL	{FALSE}
+
+				IF TT_DEBUG_THREAD_SWITCH_TIME
+				AREA    |.data|, DATA, READWRITE, ALIGN=2
+g_ticks_before_schedule		DCD		0     
+				ENDIF
+				
 
 ; Vector Table Mapped to Address 0 at Reset
 				AREA    |.text|, CODE, READONLY
-;				SECTION .text:CODE:REORDER(2)       ; 4 bytes alignment
-              
+				THUMB             
 ; void tt_syscall(void *arg, void (*on_schedule)(void *));
 ; Input
 ;	R0, arg: argument used by on_schedule
@@ -105,14 +111,13 @@ on_schedule
 				
 				MSR		PSP, R2					
 				
-
-
+				IF TT_DEBUG_THREAD_SWITCH_TIME
 				LDR		R0, =0xE000E018
 				LDR		R0,[R0]
-				IMPORT	g_ticks
-				LDR		R1, = g_ticks
+				LDR		R1, = g_ticks_before_schedule
 				LDR		R1, [R1]
-				SUBS	R0, R1, R0
+				SUBS	R0, R1, R0		; Now R0 is the thread switch time used
+				ENDIF
 				
 				BX		R3	; R3 is Current LR here
 
@@ -148,11 +153,12 @@ SysTick_Handler PROC
 				;BLX		R1
 				;MOV		LR, R0
 
+				IF TT_DEBUG_THREAD_SWITCH_TIME
 				LDR		R0, =0xE000E018
 				LDR		R0,[R0]
-				IMPORT	g_ticks
-				LDR		R1, = g_ticks
+				LDR		R1, = g_ticks_before_schedule
 				STR		R0, [R1]
+				ENDIF
 
 				IMPORT	__tt_on_timer
 				LDR		R1, =__tt_on_timer
