@@ -1,6 +1,7 @@
-NUC1xxBSP:
-    The source in folder NUC1xxBSP comes from Nuvoton's BSP for NUC1xx serials chips, and licensed by Nuvoton.
-     http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/ConsumerElectronicsIC/ARMMicrocontroller/ARMCortexTMM0/SoftwareLibrary.htm
+NUC100SeriesBSP/M051SeriesBSP:
+    The source in these two folders from Nuvoton's BSP for NuMicro
+serials chips, and licensed by Nuvoton. For more information, please
+visit http://www.nuvoton.com/NuMicro
 
 
 TinyThread:
