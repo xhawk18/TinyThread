@@ -4,6 +4,7 @@
 ;/*                                                                                                         */
 ;/*---------------------------------------------------------------------------------------------------------*/
 
+				PRESERVE8
 				GBLL	TT_DEBUG_THREAD_SWITCH_TIME
 TT_DEBUG_THREAD_SWITCH_TIME	SETL	{FALSE}
 
@@ -13,7 +14,6 @@ g_ticks_before_schedule		DCD		0
 				ENDIF
 				
 
-; Vector Table Mapped to Address 0 at Reset
 				AREA    |.text|, CODE, READONLY
 				THUMB             
 ; void tt_syscall(void *arg, void (*on_schedule)(void *));
@@ -171,4 +171,5 @@ sysIsInIRQ		PROC
 				BX		LR
 				ENDP				
 
-                END
+				ALIGN
+				END
