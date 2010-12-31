@@ -625,7 +625,7 @@
         <debug>1</debug>
         <option>
           <name>CThirdPartyDriverDll</name>
-          <state>C:\Program Files\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
+          <state>$_ProgramFiles_$\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
         </option>
         <option>
           <name>CThirdPartyLogFileCheck</name>
@@ -1323,7 +1323,7 @@
         <debug>0</debug>
         <option>
           <name>CThirdPartyDriverDll</name>
-          <state>C:\Program Files\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
+          <state>$_ProgramFiles_$\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
         </option>
         <option>
           <name>CThirdPartyLogFileCheck</name>
