@@ -625,7 +625,7 @@
         <debug>1</debug>
         <option>
           <name>CThirdPartyDriverDll</name>
-          <state>C:\Program Files\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
+          <state>$_ProgramFiles_$\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
         </option>
         <option>
           <name>CThirdPartyLogFileCheck</name>
@@ -743,7 +743,7 @@
         </option>
         <option>
           <name>MemFile</name>
-          <state></state>
+          <state>$TOOLKIT_DIR$\CONFIG\debugger\Nuvoton\iom051.ddf</state>
         </option>
         <option>
           <name>RunToEnable</name>
@@ -815,7 +815,7 @@
         </option>
         <option>
           <name>FlashLoadersV3</name>
-          <state>$TOOLKIT_DIR$\config\flashloader\</state>
+          <state>$TOOLKIT_DIR$\config\flashloader\Nuvoton\M051_APROM.board</state>
         </option>
         <option>
           <name>OCImagesSuppressCheck1</name>
@@ -1323,7 +1323,7 @@
         <debug>0</debug>
         <option>
           <name>CThirdPartyDriverDll</name>
-          <state>C:\Program Files\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
+          <state>$_ProgramFiles_$\Nuvoton Tools\Nu-Link_IAR\Nu-Link_IAR.dll</state>
         </option>
         <option>
           <name>CThirdPartyLogFileCheck</name>
