@@ -11,9 +11,9 @@ Date: 17:29:14, 2010-12-13
  Remove debug code in task switch time.
 
 Date: 15:08:34, 2010-12-13
- 1. Support both NUC100 and M051 series.
- 2. Reduce memory size required by thread kernel.
- 3. Bug fixed: void listInsert(..) may cause infinite loop.
+ # Support both NUC100 and M051 series.
+ # Reduce memory size required by thread kernel.
+ # Bug fixed: void listInsert(..) may cause infinite loop.
 
 Date: 21:09:55, 2010-3-28
  Add document.
