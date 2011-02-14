@@ -1,5 +1,5 @@
  * Date: 18:10:22, 2010-12-31
-  Use env micro ProgramFiles_$ for IAR project settings.
+  Use env micro ProgramFiles_$ for_ IAR project settings.
 
  * Date: 10:31:45, 2010-12-15
   Adds PRESERVE8/ALIGN to remove some warning.(Thanks dragonwww)
