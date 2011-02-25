@@ -6,7 +6,6 @@
 A small multi-thread library for embedded system, 
 currently used on Cortex-M0.
 
-
 = Details =
 
 Please check source code here
