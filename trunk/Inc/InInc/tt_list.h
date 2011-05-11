@@ -1,6 +1,9 @@
 #ifndef INC__LIST_H__
 #define INC__LIST_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 struct tagList;
@@ -169,6 +172,11 @@ static __INLINE void listDump (LIST_T *pList)
 		sysSafePrintf ("%d ", p->index);
 	sysSafePrintf ("]\n");
 }
+#endif
+
+
+#ifdef __cplusplus
+} // extern "C"
 #endif
 
 #endif

@@ -1,6 +1,10 @@
 #ifndef	INC__TT_TIME_H__
 #define	INC__TT_TIME_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /* Convert ticks to milliseconds */
 uint32_t tt_ticks_to_msec (uint32_t ticks);
@@ -25,5 +29,10 @@ uint32_t tt_get_ticks (void);
 uint64_t tt_get_time (void);
 /* set current second time */
 uint64_t tt_set_time (uint64_t new_time);
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	// INC__TT_TIME_H__

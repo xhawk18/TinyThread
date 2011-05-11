@@ -3,6 +3,11 @@
 
 #ifdef	TT_SUPPORT_MSG
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /* Producer-consumer */
 typedef struct
 {
@@ -77,6 +82,11 @@ void tt_bmsg_recv_ok (TT_MSG_QUEUE_T *msg_queue);
 		sizeof (LIST_T) + \
 		MEMORYPOOL_SIZE ((block_msg_size) + GetOffsetSize (TT_BLOCK_MSG_T, block_msg_data)), max_msg_num) \
 	)
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	// TT_SUPPORT_MSG
 #endif	// INC__TT_MSG_H__

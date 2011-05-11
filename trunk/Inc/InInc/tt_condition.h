@@ -3,6 +3,11 @@
 
 #ifdef	TT_SUPPORT_CONDITION
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct
 {
 	/* locked_thread points to list of locked thread */
@@ -22,6 +27,11 @@ void tt_cond_wait2 (TT_COND_T *cond, TT_RMUTEX_T *mutex);
 void tt_cond_signal (TT_COND_T *cond);
 /* Unblock all thread waiting on this condition */
 void tt_cond_broadcast (TT_COND_T *cond);
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	// TT_SUPPORT_CONDITION
 #endif	// INC__TT_CONDITION_H__

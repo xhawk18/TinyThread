@@ -115,7 +115,7 @@ on_schedule
 				LDR		R0,[R0]
 				LDR		R1, = g_ticks_before_schedule
 				LDR		R1, [R1]
-				SUBS	R0, R1, R0				; Now R0 is the thread switch time used
+				SUBS	R0, R1, R0		; Now R0 is the thread switch time used
 				ENDIF
 				
 				BX		R3	; R3 is Current LR here
@@ -152,14 +152,40 @@ SysTick_Handler
 				;MOV		LR, R0
 
 				IF TT_DEBUG_THREAD_SWITCH_TIME
-                                LDR		R0, =0xE000E018
+				LDR		R0, =0xE000E018
 				LDR		R0,[R0]
 				LDR		R1, = g_ticks_before_schedule
 				STR		R0, [R1]
-                                ENDIF
+				ENDIF
 
+				; Will call __tt_on_timer
 				IMPORT	__tt_on_timer
 				LDR		R1, =__tt_on_timer
+
+				; Check if the interrupt comes from thread or not
+				; If SysTick is from another interrupt handler,
+				; it does not save and restore thread context.
+				; 
+				; SysTick exception from interrupt handler
+				;	1. Call void on_schedule(void *)
+				; SysTick exception  from thread
+				;	1. Save thread context for g_thread_current
+				;	2. Call void on_schedule(void *)
+				;	3. Restore thread context from g_thread_next
+
+				; When enterring interrupt hander
+				;    if CurrentMode==Mode_Handler then
+				;        LR = 0xFFFFFFF1;
+				;    else
+				;    if CONTROL<1> == '0' then
+				;        LR = 0xFFFFFFF9;
+				;    else
+				;        LR = 0xFFFFFFFD;
+				MOV		R3, LR
+				MOVS	R2, #8
+				TST		R3, R2
+				BEQ		on_schedule_in_handler
+
 				B		save_thread_context
 
 sysIsInIRQ
