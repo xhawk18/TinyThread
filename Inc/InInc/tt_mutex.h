@@ -3,6 +3,11 @@
 
 #ifdef	TT_SUPPORT_MUTEX
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct
 {
 	/* locked_thread points to list of locked thread */
@@ -18,5 +23,11 @@ int tt_mutex_try_lock (TT_MUTEX_T *mutex);
 int tt_mutex_can_lock (TT_MUTEX_T *mutex);
 void tt_mutex_unlock (TT_MUTEX_T *mutex);
 
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 #endif	// TT_SUPPORT_MUTEX
+
 #endif	// INC__TT_MUTEX_H__

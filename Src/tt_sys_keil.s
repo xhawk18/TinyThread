@@ -160,8 +160,34 @@ SysTick_Handler PROC
 				STR		R0, [R1]
 				ENDIF
 
+				; Will call __tt_on_timer
 				IMPORT	__tt_on_timer
 				LDR		R1, =__tt_on_timer
+
+				; Check if the interrupt comes from thread or not
+				; If SysTick is from another interrupt handler,
+				; it does not save and restore thread context.
+				; 
+				; SysTick exception from interrupt handler
+				;	1. Call void on_schedule(void *)
+				; SysTick exception  from thread
+				;	1. Save thread context for g_thread_current
+				;	2. Call void on_schedule(void *)
+				;	3. Restore thread context from g_thread_next
+
+				; When enterring interrupt hander
+				;    if CurrentMode==Mode_Handler then
+				;        LR = 0xFFFFFFF1;
+				;    else
+				;    if CONTROL<1> == '0' then
+				;        LR = 0xFFFFFFF9;
+				;    else
+				;        LR = 0xFFFFFFFD;
+				MOV		R3, LR
+				MOVS	R2, #8
+				TST		R3, R2
+				BEQ		on_schedule_in_handler
+
 				B		save_thread_context
 				ENDP
 

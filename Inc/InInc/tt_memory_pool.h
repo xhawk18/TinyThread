@@ -1,6 +1,11 @@
 #ifndef INC__MEMORY_POOL_H__
 #define INC__MEMORY_POOL_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #define MEMPOOL_ALIGNMENT	32
 
 #define MEMPOOL_BUFFER_ADDR(addr)	(addr)
@@ -107,6 +112,10 @@ __INLINE int memNum (void *pBuffer)
 	+ MEMPOOL_ALIGN_SIZE (struct_size) * (count) \
 )
 
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif
 

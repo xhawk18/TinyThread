@@ -10,6 +10,9 @@
 #include "tt_list.h"
 #include "tt_memory_pool.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Public functions and structures */
 /* Limitation:
@@ -95,5 +98,9 @@ extern void __tt_wakeup (void);
 extern void __tt_mutex_lock (TT_MUTEX_T *mutex, TT_THREAD_T *thread);
 extern void __tt_mutex_unlock (TT_MUTEX_T *mutex, TT_THREAD_T *new_owner);
 #endif	// TT_SUPPORT_MUTEX
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	// INC__TT_PRIVATE_H__

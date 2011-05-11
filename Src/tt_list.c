@@ -1,3 +1,4 @@
+#if 0	// Move all codes to tt_list.h
 #include <stdlib.h>
 #include <stdbool.h>
 #include "../Inc/InInc/tt_list.h"
@@ -150,3 +151,4 @@ static void listDump (LIST_T *pList)
 }
 #endif
 
+#endif

@@ -1,6 +1,10 @@
 #ifndef INC_TT_SYS_H__
 #define INC_TT_SYS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 extern int	g_iIRQ_disable_count;
 extern bool	g_bIRQ_real_disable;
@@ -96,7 +100,9 @@ if (!(expr)) \
 }
 
 
-
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif
 

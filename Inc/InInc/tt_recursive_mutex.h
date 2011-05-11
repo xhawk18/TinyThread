@@ -3,6 +3,11 @@
 
 #ifdef	TT_SUPPORT_MUTEX
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct
 {
 	TT_MUTEX_T mutex;
@@ -16,6 +21,11 @@ void tt_rmutex_lock (TT_RMUTEX_T *rmutex);
 int tt_rmutex_try_lock (TT_RMUTEX_T *rmutex);
 int tt_rmutex_can_lock (TT_RMUTEX_T *rmutex);
 void tt_rmutex_unlock (TT_RMUTEX_T *rmutex);
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	// TT_SUPPORT_MUTEX
 #endif	// INC__TT_RECURSIVE_MUTEX_H__

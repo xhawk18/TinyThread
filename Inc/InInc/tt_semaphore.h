@@ -3,6 +3,11 @@
 
 #ifdef	TT_SUPPORT_SEMAPHORE
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef struct
 {
 	/* locked_thread points to list of locked thread */
@@ -16,6 +21,11 @@ void tt_sem_down (TT_SEM_T *sem);
 int tt_sem_try_down (TT_SEM_T *sem);
 int tt_sem_can_down (TT_SEM_T *sem);
 void tt_sem_up (TT_SEM_T *sem);
+
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif	// TT_SUPPORT_SEMAPHORE
 #endif	// INC__TT_SEMAPHORE_H__
