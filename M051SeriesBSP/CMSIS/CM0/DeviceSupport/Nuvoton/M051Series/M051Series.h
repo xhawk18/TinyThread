@@ -70,6 +70,7 @@ typedef enum IRQn
 #define __NVIC_PRIO_BITS        2       /*!< armikcmu Supports 2 Bits for the Priority Levels     */
 #define __Vendor_SysTickConfig  0       /*!< Set to 1 if different SysTick Config is used         */
 
+#pragma diag_suppress=Pa082
 
 #include "core_cm0.h"                   /* Cortex-M0 processor and core peripherals               */
 #include "system_M051Series.h"          /* M051Series System                                      */
