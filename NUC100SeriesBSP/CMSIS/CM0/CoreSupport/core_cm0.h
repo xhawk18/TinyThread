@@ -579,7 +579,7 @@ static __INLINE  void __SEV()                     { __ASM ("sev"); }
 /* intrinsic uint32_t __REV(uint32_t value);                      */
 /* intrinsic uint32_t __REVSH(uint32_t value);                    */
 
-
+#if __VER__ < 6020000
 /**
  * @brief  Return the Process Stack Pointer
  *
@@ -628,7 +628,7 @@ extern void __set_MSP(uint32_t topOfMainStack);
  * Reverse byte order in unsigned short value
  */
 extern uint32_t __REV16(uint16_t value);
-
+#endif
 
 
 
