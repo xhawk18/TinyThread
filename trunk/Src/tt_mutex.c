@@ -31,11 +31,11 @@ static bool comp_priority2(LIST_T *p1st, LIST_T *p2nd, void *pArg)
 static bool same_thread_and_priority (TT_THREAD_T *add_thread, TT_THREAD_T *del_thread)
 {
 	if (add_thread == del_thread)
-	{
-		if (add_thread == NULL
-			|| add_thread->priority == del_thread->priority)
-			return true;
-	}
+        return true;
+    else if(del_thread != NULL  // add_thread must != NULL
+            && add_thread->priority == del_thread->priority)
+		return true;
+    else
 	return false;
 }
 
@@ -163,12 +163,13 @@ static void tt_swap_wait_thread (TT_MUTEX_T *mutex, TT_THREAD_T *add_thread, TT_
 			del_thread->locked_by_mutex = false;
 	
 			/* Update the header of locked_thread */
-			if (listIsEmpty(&list) != false)
-				mutex->locked_thread = NULL;
+			//if (listIsEmpty(&list) != false)
+			//	mutex->locked_thread = NULL;
 		}
 	
 		/* Add thread */
-		if (add_thread != NULL)
+        ASSERT(add_thread != NULL);
+		//if (add_thread != NULL)
 		{		
 			listDetach (&add_thread->list_schedule);
 			add_thread->wait_parent = mutex;
@@ -198,7 +199,7 @@ static void tt_swap_wait_thread (TT_MUTEX_T *mutex, TT_THREAD_T *add_thread, TT_
 				mutex = (TT_MUTEX_T *)mutex->owner_thread->wait_parent;
 				add_thread = mutex->owner_thread;
 				del_thread = mutex->owner_thread;
-				/* Continue ... */
+				/* Continue to set priority of wait_parent thread ... */
 			}
 			else
 				break;
