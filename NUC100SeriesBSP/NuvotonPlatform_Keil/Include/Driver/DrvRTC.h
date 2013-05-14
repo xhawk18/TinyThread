@@ -6,24 +6,22 @@
 #ifndef __DRVRTC_H__
 #define __DRVRTC_H__
 
-
 /*---------------------------------------------------------------------------------------------------------*/
 /* Includes of system headers                                                                              */
 /*---------------------------------------------------------------------------------------------------------*/
 #include "NUC1xx.h"
 
-
 /*---------------------------------------------------------------------------------------------------------*/
-/*  Define Version number								                                                   */
+/*  Define Version number                                                                                  */
 /*---------------------------------------------------------------------------------------------------------*/
-#define DRVRTC_MAJOR_NUM 1
-#define DRVRTC_MINOR_NUM 02
-#define DRVRTC_BUILD_NUM 002
+#define DRVRTC_MAJOR_NUM    1
+#define DRVRTC_MINOR_NUM    04
+#define DRVRTC_BUILD_NUM    005
 
 /*---------------------------------------------------------------------------------------------------------*/
 /*  Version define with SysInfra				                                                           */
 /*---------------------------------------------------------------------------------------------------------*/
-#define DRVRTC_VERSION_NUM    _SYSINFRA_VERSION(DRVRTC_MAJOR_NUM,DRVRTC_MINOR_NUM,DRVRTC_BUILD_NUM)  
+#define DRVRTC_VERSION_NUM    _SYSINFRA_VERSION(DRVRTC_MAJOR_NUM, DRVRTC_MINOR_NUM,DRVRTC_BUILD_NUM)  
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Define Error Code	                                                                                   */
@@ -81,25 +79,24 @@
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum
 {
-	DRVRTC_ALARM_INT    =0x01,
-	DRVRTC_TICK_INT     =0x02,
-	DRVRTC_ALL_INT      =0x03
+	DRVRTC_ALARM_INT    = 0x01,
+	DRVRTC_TICK_INT     = 0x02,
+	DRVRTC_ALL_INT      = 0x03
 }E_DRVRTC_INT_SOURCE;
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Define for RTC Tick mode                                                                                */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum
 {
- 	DRVRTC_TICK_1_SEC       =         0,                           /* 1     sec                            */
- 	DRVRTC_TICK_1_2_SEC     =         1,                           /* 1/2   sec                            */
- 	DRVRTC_TICK_1_4_SEC     =         2,                           /* 1/4   sec                            */ 
- 	DRVRTC_TICK_1_8_SEC     =         3,                           /* 1/8   sec                            */
- 	DRVRTC_TICK_1_16_SEC    =         4,                           /* 1/16  sec                            */
- 	DRVRTC_TICK_1_32_SEC    =         5,                           /* 1/32  sec                            */ 
- 	DRVRTC_TICK_1_64_SEC    =         6,                           /* 1/64  sec                            */
- 	DRVRTC_TICK_1_128_SEC   =         7                            /* 1/128 sec                            */
+ 	DRVRTC_TICK_1_SEC       =   0,          /* 1     sec                            */
+ 	DRVRTC_TICK_1_2_SEC     =   1,          /* 1/2   sec                            */
+ 	DRVRTC_TICK_1_4_SEC     =   2,          /* 1/4   sec                            */ 
+ 	DRVRTC_TICK_1_8_SEC     =   3,          /* 1/8   sec                            */
+ 	DRVRTC_TICK_1_16_SEC    =   4,          /* 1/16  sec                            */
+ 	DRVRTC_TICK_1_32_SEC    =   5,          /* 1/32  sec                            */ 
+ 	DRVRTC_TICK_1_64_SEC    =   6,          /* 1/64  sec                            */
+ 	DRVRTC_TICK_1_128_SEC   =   7           /* 1/128 sec                            */
 }E_DRVRTC_TICK;
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -109,8 +106,8 @@ typedef void (PFN_DRVRTC_CALLBACK)(void);
 
 typedef enum
 {
-	DRVRTC_CURRENT_TIME    =    0,
-	DRVRTC_ALARM_TIME      =    1 
+	DRVRTC_CURRENT_TIME     = 0,
+	DRVRTC_ALARM_TIME       = 1 
 }E_DRVRTC_TIME_SELECT;
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -118,21 +115,22 @@ typedef enum
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum
 {
-    DRVRTC_SUNDAY         =   0,
-    DRVRTC_MONDAY         =   1,
-    DRVRTC_TUESDAY        =   2,
-    DRVRTC_WEDNESDAY      =   3,
-    DRVRTC_THURSDAY       =   4,
-    DRVRTC_FRIDAY         =   5,
-    DRVRTC_SATURDAY       =   6
+    DRVRTC_SUNDAY           = 0,
+    DRVRTC_MONDAY           = 1,
+    DRVRTC_TUESDAY          = 2,
+    DRVRTC_WEDNESDAY        = 3,
+    DRVRTC_THURSDAY         = 4,
+    DRVRTC_FRIDAY           = 5,
+    DRVRTC_SATURDAY         = 6
 }E_DRVRTC_DWR_PARAMETER;
+
 /*---------------------------------------------------------------------------------------------------------*/
 /* Define Time Data Struct                                                                                 */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef struct
 {
-    uint8_t u8cClockDisplay;                                         /* 12-Hour, 24-Hour */
-    uint8_t u8cAmPm;                                                 /* Only 12-hr used */
+    uint8_t u8cClockDisplay;            /* 12-Hour, 24-Hour */
+    uint8_t u8cAmPm;                    /* Only 12-hr used */
     uint32_t u32cSecond;
     uint32_t u32cMinute;
     uint32_t u32cHour;
@@ -140,10 +138,9 @@ typedef struct
     uint32_t u32cDay;
     uint32_t u32cMonth;
     uint32_t u32Year;
-	uint8_t  u8IsEnableWakeUp;                                                 /* Wakeup Enable */
+	uint8_t  u8IsEnableWakeUp;          /* Wakeup Enable */
     
 }S_DRVRTC_TIME_DATA_T;
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Define Function Prototype                                                                               */
@@ -162,6 +159,7 @@ int32_t DrvRTC_GetVersion (void);
 int32_t DrvRTC_DisableInt(E_DRVRTC_INT_SOURCE i32IntSrc);
 int32_t DrvRTC_EnableInt(E_DRVRTC_INT_SOURCE str_IntSrc, PFN_DRVRTC_CALLBACK pfncallback);
 int32_t DrvRTC_SetTickMode(uint8_t ucMode);
+
 #endif /* __DRVRTC_H__ */
 
 

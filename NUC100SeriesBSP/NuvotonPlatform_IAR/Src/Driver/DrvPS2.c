@@ -39,7 +39,7 @@ static PFN_DRVPS2_CALLBACK *g_pfnPS2callback = NULL;
 /* Description:                                                                                            */
 /*               The function is used to initialize PS2                                                   */
 /*---------------------------------------------------------------------------------------------------------*/
-int32_t DrvPS2_Open()
+int32_t DrvPS2_Open(void)
 {
 	SYS->IPRSTC2.PS2_RST = 1;
     SYS->IPRSTC2.PS2_RST = 0;
@@ -87,14 +87,12 @@ void PS2_IRQHandler(void)
 {
     uint32_t u32IntStatus;
 
-    u32IntStatus = inpw(&PS2->INTID);
-
+    u32IntStatus = PS2->u32INTID;
+    PS2->u32INTID = 3;
     if(g_pfnPS2callback != NULL)
     {
         g_pfnPS2callback(u32IntStatus);
     }
-    else
-    	PS2->INTID = 3;
 }
 
 
@@ -122,7 +120,7 @@ DrvPS2_EnableInt(
 
 	g_pfnPS2callback = pfncallback;
 	
-	NVIC_SetPriority (PS2_IRQn, (1<<__NVIC_PRIO_BITS) - 1);
+	NVIC_SetPriority (PS2_IRQn, (1<<__NVIC_PRIO_BITS) - 2);
 	NVIC_EnableIRQ(PS2_IRQn);
 
 	return E_SUCCESS;
@@ -232,11 +230,11 @@ DrvPS2_GetIntStatus(
 	switch(u32InterruptFlag)
 	{
 		case DRVPS2_RXINT:
-			if(PS2->INTID & DRVPS2_RXINT)		  	// Rx interrupt
+			if(PS2->u32INTID & DRVPS2_RXINT)		  	// Rx interrupt
 				return TRUE;
 			break;
 		case DRVPS2_TXINT:
-			if(PS2->INTID & DRVPS2_TXINT)		    // Tx interrupt
+			if(PS2->u32INTID & DRVPS2_TXINT)		    // Tx interrupt
 				return TRUE;
 			break;
 		default:

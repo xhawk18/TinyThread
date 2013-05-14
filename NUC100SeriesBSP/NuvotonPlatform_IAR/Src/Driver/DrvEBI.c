@@ -26,7 +26,7 @@
 /* Parameters:                                                                                             */
 /*                  sEBIConfig - [in]																	   */
 /*						Input the general EBI Control Register settings, the DRVEBI_CONFIG_T structure.    */
-/*						It's included eBusWidth, u32BaseAddress and u32Size.							   */   
+/*						It's included eDataWidth, eAddrWidth, u32BaseAddress and u32Size.				   */   
 /* Return:                                                                                                 */
 /*					E_SUCCESS								Operation successful   			               */
 /*                  E_DRVEBI_ERR_ARGUMENT					Invalid argument                               */
@@ -39,21 +39,20 @@ int32_t DrvEBI_Open(DRVEBI_CONFIG_T sEBIConfig)
 	SYSCLK->AHBCLK.EBI_EN = 1;
 
 	/* EBI function enable */
-	EBI->CON.ExtEN = 1;
+	EBI->EBICON.ExtEN = 1;
 	
-	if (sEBIConfig.eBusWidth == E_DRVEBI_BUS_8BIT)
+	if (sEBIConfig.eAddrWidth == E_DRVEBI_ADDR_8BIT)
 	{	
 		DrvGPIO_InitFunction(E_FUNC_EBI_8B);
-		EBI->CON.ExtBW16 = 0;
-	}
-	else if (sEBIConfig.eBusWidth == E_DRVEBI_BUS_16BIT)
+	}else
+	if (sEBIConfig.eAddrWidth == E_DRVEBI_ADDR_16BIT)
 	{
 		DrvGPIO_InitFunction(E_FUNC_EBI_16B);
-		EBI->CON.ExtBW16 = 1;
 	}else
 	{
         return E_DRVEBI_ERR_ARGUMENT;
 	}
+    EBI->EBICON.ExtBW16 = sEBIConfig.eDataWidth;
     		
     return E_SUCCESS;
 }
@@ -71,7 +70,7 @@ int32_t DrvEBI_Open(DRVEBI_CONFIG_T sEBIConfig)
 void DrvEBI_Close(void)
 {
 	/* EBI disable */
-	EBI->CON.ExtEN = 0;
+	EBI->EBICON.ExtEN = 0;
 	
 	/* EBI clock disable */
 	SYSCLK->AHBCLK.EBI_EN = 0;
@@ -85,7 +84,7 @@ void DrvEBI_Close(void)
 /* Parameters:                                                                                             */
 /*                  sEBITiming - [in]				   													   */
 /*						It is meaning the DRVEBI_TIMING_T structure and included eMCLKDIV, 	               */
-/*						u8ExttALE, u8ExtIR2R, u8ExtIR2W, u8ExtIW2X, u8ExttAHD and u8ExttACC.	           */
+/*						u8ExttALE, u8ExtIR2R, u8ExtIW2X, u8ExttAHD and u8ExttACC.	                       */
 /* Return:                                                                                                 */
 /*                  None                                                                                   */
 /* Description:                                                                                            */
@@ -93,14 +92,13 @@ void DrvEBI_Close(void)
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvEBI_SetBusTiming(DRVEBI_TIMING_T sEBITiming)
 {	
-	EBI->CON.MCLKDIV = sEBITiming.eMCLKDIV;
-	EBI->CON.ExttALE = sEBITiming.u8ExttALE;
+	EBI->EBICON.MCLKDIV = sEBITiming.eMCLKDIV;
+	EBI->EBICON.ExttALE = sEBITiming.u8ExttALE;
 	
-	EBI->TIME.ExttACC = sEBITiming.u8ExttACC;
-	EBI->TIME.ExttAHD = sEBITiming.u8ExttAHD;
-	EBI->TIME.ExtIW2X = sEBITiming.u8ExtIW2X;
-	EBI->TIME.ExtIR2W = sEBITiming.u8ExtIR2W;
-	EBI->TIME.ExtIR2R = sEBITiming.u8ExtIR2R;
+	EBI->EXTIME.ExttACC = sEBITiming.u8ExttACC;
+	EBI->EXTIME.ExttAHD = sEBITiming.u8ExttAHD;
+	EBI->EXTIME.ExtIW2X = sEBITiming.u8ExtIW2X;
+	EBI->EXTIME.ExtIR2R = sEBITiming.u8ExtIR2R;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -109,7 +107,7 @@ void DrvEBI_SetBusTiming(DRVEBI_TIMING_T sEBITiming)
 /* Parameters:                                                                                             */
 /*             		psEBITiming - [out] 																   */
 /*						It is meaning the DRVEBI_TIMING_T structure and included eMCLKDIV, 	               */
-/*						u8ExttALE, u8ExtIR2R, u8ExtIR2W, u8ExtIW2X, u8ExttAHD and u8ExttACC.	           */
+/*						u8ExttALE, u8ExtIR2R, u8ExtIW2X, u8ExttAHD and u8ExttACC.	                       */
 /* Return:                                                                                                 */
 /*                  Data buffer pointer that stored the EBI bus timing settings		                       */
 /* Description:                                                                                            */
@@ -117,14 +115,13 @@ void DrvEBI_SetBusTiming(DRVEBI_TIMING_T sEBITiming)
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvEBI_GetBusTiming(DRVEBI_TIMING_T *psEBITiming)
 {
-	psEBITiming->eMCLKDIV  = (E_DRVEBI_MCLKDIV)EBI->CON.MCLKDIV;
-	psEBITiming->u8ExttALE = EBI->CON.ExttALE;
+	psEBITiming->eMCLKDIV  = (E_DRVEBI_MCLKDIV)EBI->EBICON.MCLKDIV;
+	psEBITiming->u8ExttALE = EBI->EBICON.ExttALE;
 	
-	psEBITiming->u8ExttACC = EBI->TIME.ExttACC;
-	psEBITiming->u8ExttAHD = EBI->TIME.ExttAHD;
-	psEBITiming->u8ExtIW2X = EBI->TIME.ExtIW2X;
-	psEBITiming->u8ExtIR2W = EBI->TIME.ExtIR2W;
-	psEBITiming->u8ExtIR2R = EBI->TIME.ExtIR2R;
+	psEBITiming->u8ExttACC = EBI->EXTIME.ExttACC;
+	psEBITiming->u8ExttAHD = EBI->EXTIME.ExttAHD;
+	psEBITiming->u8ExtIW2X = EBI->EXTIME.ExtIW2X;
+	psEBITiming->u8ExtIR2R = EBI->EXTIME.ExtIR2R;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/

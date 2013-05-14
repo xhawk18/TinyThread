@@ -8,7 +8,7 @@
 
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Include related headers                                                                              */
+/* Include related headers                                                                                 */
 /*---------------------------------------------------------------------------------------------------------*/
 #include "NUC1xx.h"
 #include "System/SysInfra.h"
@@ -21,16 +21,16 @@
 /*---------------------------------------------------------------------------------------------------------*/
 /* version definition with SysInfra */
 #define	DRVADC_MAJOR_NUM 1
-#define	DRVADC_MINOR_NUM 02
+#define	DRVADC_MINOR_NUM 03
 #define	DRVADC_BUILD_NUM 002
 #define DRVADC_VERSION_NUM    _SYSINFRA_VERSION(DRVADC_MAJOR_NUM, DRVADC_MINOR_NUM, DRVADC_BUILD_NUM)
 
 /* error code definition */
-#define E_DRVADC_ARGUMENT           _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVADC, 1)
+#define E_DRVADC_ARGUMENT     _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVADC, 1)
 
 typedef enum {ADC_SINGLE_END, ADC_DIFFERENTIAL} E_ADC_INPUT_MODE;
 typedef enum {ADC_SINGLE_OP, ADC_SINGLE_CYCLE_OP, ADC_CONTINUOUS_OP} E_ADC_OPERATION_MODE;
-typedef enum {EXTERNAL_12MHZ=0, INTERNAL_PLL=1, INTERNAL_RC22MHZ=2} E_ADC_CLK_SRC;
+typedef enum {EXTERNAL_12MHZ=0, INTERNAL_PLL=1, INTERNAL_HCLK=2, INTERNAL_RC22MHZ=3} E_ADC_CLK_SRC;
 typedef enum {LOW_LEVEL=0, HIGH_LEVEL=1, FALLING_EDGE=2, RISING_EDGE=3} E_ADC_EXT_TRI_COND;
 typedef enum {EXTERNAL_INPUT_SIGNAL, INTERNAL_BANDGAP, INTERNAL_TEMPERATURE_SENSOR} E_ADC_CH7_SRC;
 typedef enum {LESS_THAN, GREATER_OR_EQUAL} E_ADC_CMP_CONDITION;
@@ -53,7 +53,7 @@ typedef void (DRVADC_ADCMP1_CALLBACK)(uint32_t u32UserData);
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvADC_Open(E_ADC_INPUT_MODE InputMode, E_ADC_OPERATION_MODE OpMode, uint8_t u8ChannelSelBitwise, E_ADC_CLK_SRC ClockSrc, uint8_t u8AdcDivisor);
 void DrvADC_Close(void);
-void DrvADC_SetADCChannel(uint8_t u8ChannelSelBitwise, E_ADC_INPUT_MODE InputMode);
+void DrvADC_SetADCChannel(uint8_t u8ChannelSelBitwise);
 void DrvADC_ConfigADCChannel7(E_ADC_CH7_SRC Ch7Src);
 void DrvADC_SetADCInputMode(E_ADC_INPUT_MODE InputMode);
 void DrvADC_SetADCOperationMode(E_ADC_OPERATION_MODE OpMode);

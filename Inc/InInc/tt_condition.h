@@ -23,6 +23,10 @@ void tt_cond_init (TT_COND_T *cond);
 void tt_cond_wait (TT_COND_T *cond, TT_MUTEX_T *mutex);
 /* Wait cond on a recursive mutex */
 void tt_cond_wait2 (TT_COND_T *cond, TT_RMUTEX_T *mutex);
+/* Wait cond on a common mutex */
+int tt_cond_wait_timeout (TT_COND_T *cond, TT_MUTEX_T *mutex, uint32_t msec);
+/* Wait cond on a recursive mutex */
+int tt_cond_wait2_timeout (TT_COND_T *cond, TT_RMUTEX_T *mutex, uint32_t msec);
 /* Unblock at lease one thread waiting on this condition */
 void tt_cond_signal (TT_COND_T *cond);
 /* Unblock all thread waiting on this condition */

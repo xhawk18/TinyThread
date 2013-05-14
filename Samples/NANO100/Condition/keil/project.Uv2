@@ -1,0 +1,110 @@
+### uVision2 Project, (C) Keil Software
+### Do not modify !
+
+Target (Project), 0x0004 // Tools: 'ARM-ADS'
+
+Group (CMSIS)
+Group (COMMON)
+Group (Libraries)
+Group (TinyThread)
+Group (Src)
+
+File 1,2,<..\..\..\..\NANO100BSeriesBSP\Libraries\Device\Nuvoton\NANO1xx\Source\ARM\startup_nano1xx.s><startup_nano1xx.s>
+File 2,1,<..\..\..\..\NANO100BSeriesBSP\Samples\Driver\COMMON\nano1xx_retarget.c><nano1xx_retarget.c>
+File 2,1,<..\..\..\..\NANO100BSeriesBSP\Samples\Driver\COMMON\system_nano1xx.c><system_nano1xx.c>
+File 3,1,<..\..\..\..\NANO100BSeriesBSP\Libraries\NANO1xx_Drivers\Source\nano1xx_gpio.c><nano1xx_gpio.c>
+File 4,1,<..\..\..\..\Src\tt.c><tt.c>
+File 5,1,<..\Main.c><Main.c>
+File 5,5,<..\tt_config.h><tt_config.h>
+
+
+Options 1,0,0  // Target 'Project'
+ Device (Cortex-M0)
+ Vendor (ARM)
+ Cpu (CLOCK(12000000) CPUTYPE("Cortex-M0"))
+ FlashUt ()
+ StupF ()
+ FlashDR ()
+ DevID (4803)
+ Rgf ()
+ Mem ()
+ C ()
+ A ()
+ RL ()
+ OH ()
+ DBC_IFX ()
+ DBC_CMS ()
+ DBC_AMS ()
+ DBC_LMS ()
+ UseEnv=0
+ EnvBin ()
+ EnvInc ()
+ EnvLib ()
+ EnvReg (ST\STM32F10x\)
+ OrgReg (ST\STM32F10x\)
+ TgStat=16
+ OutDir (.\obj\)
+ OutName (project)
+ GenApp=1
+ GenLib=0
+ GenHex=0
+ Debug=1
+ Browse=1
+ LstDir (.\lst\)
+ HexSel=1
+ MG32K=0
+ TGMORE=0
+ RunUsr 0 1 <fromelf --bin ".\obj\@L.axf" --output ".\obj\@L.bin">
+ RunUsr 1 1 <fromelf --text -c ".\obj\@L.axf" --output ".\obj\@L.txt">
+ BrunUsr 0 0 <>
+ BrunUsr 1 0 <>
+ CrunUsr 0 0 <>
+ CrunUsr 1 0 <>
+ SVCSID <>
+ GLFLAGS=1790
+ ADSFLGA { 51,67,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ ACPUTYP ("Cortex-M0")
+ RVDEV ()
+ ADSTFLGA { 0,0,0,18,99,0,1,66,0,0,0,0,0,0,0,0,0,0,0,0 }
+ OCMADSOCM { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ OCMADSIRAM { 0,0,0,0,32,0,80,0,0 }
+ OCMADSIROM { 1,0,0,0,8,0,0,2,0 }
+ OCMADSXRAM { 0,0,0,0,0,0,0,0,0 }
+ OCR_RVCT { 1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,2,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32,0,64,0,0,0,0,0,0,0,0,0,0,0 }
+ RV_STAVEC ()
+ ADSCCFLG { 13,32,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ ADSCMISC ()
+ ADSCDEFN ()
+ ADSCUDEF ()
+ ADSCINCD (..;..\..\..\..\NANO100BSeriesBSP\Libraries\Device\Nuvoton\NANO1xx\Include;..\..\..\..\NANO100BSeriesBSP\Libraries\NANO1xx_Drivers\Include)
+ ADSASFLG { 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ ADSAMISC ()
+ ADSADEFN ()
+ ADSAUDEF ()
+ ADSAINCD ()
+ PropFld { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ IncBld=1
+ AlwaysBuild=0
+ GenAsm=0
+ AsmAsm=0
+ PublicsOnly=0
+ StopCode=3
+ CustArgs ()
+ LibMods ()
+ ADSLDFG { 16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ ADSLDTA (0x00000000)
+ ADSLDDA (0x20000000)
+ ADSLDSC ()
+ ADSLDIB ()
+ ADSLDIC ()
+ ADSLDMC (--map --first='startup_nano1xx.o(RESET)' --datacompressor=off --info=inline --entry Reset_Handler)
+ ADSLDIF ()
+ ADSLDDW ()
+  OPTDL (SARMCM3.DLL)()(DARMCM1.DLL)()(SARMCM3.DLL)()(TARMCM1.DLL)()
+  OPTDBG 49150,15,()()()()()()()()()() (Bin\Nu_Link.dll)()()()
+ FLASH1 { 9,0,0,0,1,0,0,0,10,16,0,0,0,0,0,0,0,0,0,0 }
+ FLASH2 (Bin\Nu_Link.dll)
+ FLASH3 ("" ())
+ FLASH4 ()
+EndOpt
+

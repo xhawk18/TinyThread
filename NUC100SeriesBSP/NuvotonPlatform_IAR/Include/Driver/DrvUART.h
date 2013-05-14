@@ -18,7 +18,7 @@ extern "C"
 /*---------------------------------------------------------------------------------------------------------*/
 #define DRVUART_MAJOR_NUM	1
 #define DRVUART_MINOR_NUM	02
-#define DRVUART_BUILD_NUM	002
+#define DRVUART_BUILD_NUM	004
 
 /*---------------------------------------------------------------------------------------------------------*/
 /*  Version define with SysInfra				                                                           */
@@ -42,8 +42,9 @@ extern "C"
 #define E_DRVUART_ERR_STOP_BITS_INVALID   	_SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVUART, 5)
 #define E_DRVUART_ERR_TRIGGERLEVEL_INVALID  _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVUART, 6)
 #define E_DRVUART_ARGUMENT                  _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVUART, 7)
+#define E_DRVUART_ERR_OPEN                  _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVUART, 8)
 
-
+      
 typedef void (PFN_DRVUART_CALLBACK)(uint32_t userData);
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -78,12 +79,12 @@ typedef enum
 } E_UART_PORT;
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* define UART line status control			                                                         	   */
+/* define UART Interrupt Source                                                                     	   */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum 
 {
 	 DRVUART_LININT   	=    BIT8,	    /* LIN RX Break Field Detected Interrupt */
-	 DRVUART_WAKEUPINT	=	 BIT6,		/* Wake up interrupt */
+     DRVUART_WAKEUPINT  =    BIT7,      /* Wakeup Enable */
      DRVUART_BUFERRINT  =	 BIT5,		/* Buffer Error Interrupt */
      DRVUART_TOUTINT   	=	 BIT4,	    /* RX Time out Interrupt */
 	 DRVUART_MOSINT   	=	 BIT3,	    /* MODEM Status Interrupt */
@@ -91,6 +92,21 @@ typedef enum
 	 DRVUART_THREINT   	=	 BIT1,	    /* Transmit Holding Register Empty Interrupt */
 	 DRVUART_RDAINT   	=	 BIT0		/* Receive Data Available Interrupt */
 } E_INT_SOURCE;
+
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* define UART Interrupt Flag    			                                                         	   */
+/*---------------------------------------------------------------------------------------------------------*/
+typedef enum 
+{
+	 DRVUART_LININT_FLAG   	 =   BIT15,	    /* LIN RX Break Field Detected Interrupt flag*/
+     DRVUART_BUFERRINT_FLAG  =	 BIT13,		/* Buffer Error Interrupt flag*/
+     DRVUART_TOUTINT_FLAG    =	 BIT12,	    /* RX Time out Interrupt flag*/
+	 DRVUART_MOSINT_FLAG   	 =	 BIT11,	    /* MODEM Status Interrupt flag*/
+	 DRVUART_RLSINT_FLAG   	 =	 BIT10,	    /* Receive Line Status Interrupt flag*/
+	 DRVUART_THREINT_FLAG    =	 BIT9,	    /* Transmit Holding Register Empty Interrupt flag*/
+	 DRVUART_RDAINT_FLAG   	 =	 BIT8		/* Receive Data Available Interrupt flag*/
+} E_INT_FLAG;
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* DATA BIT                                                                                                */

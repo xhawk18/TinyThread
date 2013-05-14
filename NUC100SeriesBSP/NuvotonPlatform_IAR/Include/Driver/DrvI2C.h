@@ -10,43 +10,43 @@
 
 
 /*---------------------------------------------------------------------------------------------------------*/
-/*  Define Version number								                                                   */
+/*  Define Version number                                                                                  */
 /*---------------------------------------------------------------------------------------------------------*/
-#define DRVI2C_MAJOR_NUM	1
-#define DRVI2C_MINOR_NUM	02
-#define DRVI2C_BUILD_NUM	2
+#define DRVI2C_MAJOR_NUM    1
+#define DRVI2C_MINOR_NUM    02
+#define DRVI2C_BUILD_NUM    2
 
 /*---------------------------------------------------------------------------------------------------------*/
-/*  Version define with SysInfra				                                                           */
+/*  Version define with SysInfra                                                                           */
 /*---------------------------------------------------------------------------------------------------------*/
 #define DRVI2C_VERSION_NUM     _SYSINFRA_VERSION(DRVI2C_MAJOR_NUM, DRVI2C_MINOR_NUM, DRVI2C_BUILD_NUM)
-							   
+                               
 /*---------------------------------------------------------------------------------------------------------*/
-/*  Define Error Code									                                                   */
+/*  Define Error Code                                                                                      */
 /*---------------------------------------------------------------------------------------------------------*/
-// E_DRVI2C_ERR_ARGUMENT  		Incorrect Argument
+// E_DRVI2C_ERR_ARGUMENT        Incorrect Argument
 #define E_DRVI2C_ERR_ARGUMENT   _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVI2C, 1)
 
 /*---------------------------------------------------------------------------------------------------------*/
-/*  I2C port 								                                                               */
+/*  I2C port                                                                                               */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum 
 {
-	I2C_PORT0 = 0, 
-	I2C_PORT1 = 1
+    I2C_PORT0 = 0,
+    I2C_PORT1 = 1
 } E_I2C_PORT;
 
 typedef void (*I2C_CALLBACK)(uint32_t status);
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Define I2C Call back function type                                                               	   */
+/* Define I2C Call back function type                                                                      */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum
 {
-	I2CFUNC   = 0, 
-	ARBITLOSS = 1,
-	BUSERROR  = 2,
-	TIMEOUT	  = 3
+    I2CFUNC   = 0,
+    ARBITLOSS = 1,
+    BUSERROR  = 2,
+    TIMEOUT   = 3
 } E_I2C_CALLBACK_TYPE;
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -54,10 +54,10 @@ typedef enum
 /*---------------------------------------------------------------------------------------------------------*/
 typedef struct
 {
-    I2C_CALLBACK	I2CCallBackFn;
-    I2C_CALLBACK	ArbitLossCallBackFn;    
-    I2C_CALLBACK	BusErrCallBackFn;
-    I2C_CALLBACK	TimeoutCallBackFn;
+    I2C_CALLBACK    I2CCallBackFn;
+    I2C_CALLBACK    ArbitLossCallBackFn;
+    I2C_CALLBACK    BusErrCallBackFn;
+    I2C_CALLBACK    TimeoutCallBackFn;
 
 } I2C_CALLBACK_T;
 

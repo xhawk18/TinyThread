@@ -11,7 +11,7 @@
   Clock Variable definitions
  *----------------------------------------------------------------------------*/
 uint32_t SystemCoreClock  = __HSI;   /*!< System Clock Frequency (Core Clock) */
-
+uint32_t CyclesPerUs      = (__HSI / 1000000); /* Cycles per micro second */
 uint32_t gau32ClkSrcTbl[] = {__XTAL, __RTC_XTAL, __HSI, __IRC10K, __IRC22M};
 
 /*----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ void SystemCoreClockUpdate (void)            /* Get Core Clock Frequency      */
     }
  
     SystemCoreClock = (u32CoreFreq/(SYSCLK->CLKDIV.HCLK_N + 1));
-
+    CyclesPerUs = (SystemCoreClock + 500000) / 1000000;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/

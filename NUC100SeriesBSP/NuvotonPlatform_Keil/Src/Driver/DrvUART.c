@@ -90,33 +90,36 @@ Mode	DIV_X_EN	DIV_X_ONE	Divider X	BRD	(Baud rate equation)
 */
 
 
-static void BaudRateCalculator(uint32_t clk, uint32_t baudRate, UART_BAUD_T *baud)
+static void BaudRateCalculator(uint32_t clk, uint32_t baudRate, E_UART_PORT u32Port)
 {
   	int32_t tmp;
 	int32_t div;
+  
+  	UART_T * tUART;
+	tUART = (UART_T *)((uint32_t)UART0 + u32Port);  
 
 	if(((clk / baudRate)%16)<3)	      /* Source Clock mod 16 <3 => Using Divider X =16 (MODE#0) */ 
 	{								  
-		baud->DIV_X_EN = 0;
-	    baud->DIV_X_ONE   = 0;
+		tUART->BAUD.DIV_X_EN = 0;
+	    tUART->BAUD.DIV_X_ONE   = 0;
 		tmp = clk / baudRate/16  -2;
 	}
 	else							  /* Source Clock mod 16 >3 => Up 5% Error BaudRate */
 	{
-	    baud->DIV_X_EN = 1;			  /* Try to Set Divider X = 1 (MODE#2)*/
-	    baud->DIV_X_ONE   = 1;
+	    tUART->BAUD.DIV_X_EN = 1;			  /* Try to Set Divider X = 1 (MODE#2)*/
+	    tUART->BAUD.DIV_X_ONE   = 1;
 		tmp = clk / baudRate  -2;
 
 		if(tmp > 0xFFFF)			  /* If Divider > Range  */
 		{
-			baud->DIV_X_EN = 1;		  /* Try to Set Divider X up 10 (MODE#1) */
-			baud->DIV_X_ONE   = 0;
+			tUART->BAUD.DIV_X_EN = 1;		  /* Try to Set Divider X up 10 (MODE#1) */
+			tUART->BAUD.DIV_X_ONE   = 0;
 
 			for(div = 8; div <16;div++)
 			{
 				if(((clk / baudRate)%(div+1))<3)
 				{
-					baud->DIVIDER_X   = div;
+					tUART->BAUD.DIVIDER_X   = div;
 					tmp = clk / baudRate / (div+1) -2;
 					break;
 				}
@@ -124,7 +127,7 @@ static void BaudRateCalculator(uint32_t clk, uint32_t baudRate, UART_BAUD_T *bau
 		}
 	}
 
-	baud->BRD = tmp; 
+	tUART->BAUD.BRD = tmp; 
 
 }
 
@@ -141,21 +144,21 @@ static void BaudRateCalculator(uint32_t clk, uint32_t baudRate, UART_BAUD_T *bau
 static uint32_t GetUartClk(void)
 {
 	uint32_t clk =0 , div;
-													/* Check UART Clock Source Setting */
-	if(SYSCLK->CLKSEL1.UART_S == 0)			
+
+    div = SYSCLK->CLKDIV.UART_N;				/* According PLL Clock and UART_Divider to get clock */
+													
+	if(SYSCLK->CLKSEL1.UART_S == 0)			    /* Check UART Clock Source Setting */
 	{
 		clk = DrvSYS_GetExtClockFreq();			/* Get External Clock From DrvSYS Setting */
 	}
 	else if(SYSCLK->CLKSEL1.UART_S == 1)
 	{
-	 	div = SYSCLK->CLKDIV.UART_N;				/* According PLL Clock and UART_Divider to get clock */
-	
-		clk = DrvSYS_GetPLLClockFreq()/ (div+1);
+		clk = DrvSYS_GetPLLClockFreq();
 	}
 	else
 		clk = __IRC22M;								/* Clock 22Mhz  */
 
-	return clk;
+	return (clk/(div+1));
 }
 
  
@@ -188,7 +191,7 @@ void DrvUART_SetRTS(E_UART_PORT u32Port,uint8_t u8Value,uint16_t u16TriggerLevel
 
 	tUART->MCR.RTS = u8Value;
 
-	tUART->FCR.RTS_TRI_LEVEL = u16TriggerLevel;
+	tUART->FCR.RTS_TRI_LEV = u16TriggerLevel;
 }	
 
 
@@ -341,8 +344,23 @@ int32_t DrvUART_Open(E_UART_PORT u32Port, STR_UART_T *sParam)
 	/* Set Time-Out */
 	tUART->TOR.TOIC	=sParam->u8TimeOut;
 
+    /* Check Clock Source */
+    if(SYSCLK->PWRCON.XTL12M_EN)
+        SYSCLK->CLKSEL1.UART_S = 0;
+    else
+    {
+        if(SYSCLK->PLLCON.PD==0)
+            SYSCLK->CLKSEL1.UART_S = 1;
+        else
+            if(SYSCLK->PWRCON.OSC22M_EN)
+                SYSCLK->CLKSEL1.UART_S = 3;
+            else
+                return E_DRVUART_ERR_OPEN;
+    }
+ 
 	/* Set BaudRate */
-	BaudRateCalculator(GetUartClk(), sParam->u32BaudRate, &tUART->BAUD);
+    BaudRateCalculator(GetUartClk(), sParam->u32BaudRate, u32Port);
+    
 
 	return E_SUCCESS;
 }
@@ -422,7 +440,7 @@ DrvUART_EnableInt(
 	tUART->IER.RTO_IEN		=(u32InterruptFlag & DRVUART_TOUTINT)?1:0;		/* Time-out INT enable */
 
 	tUART->IER.BUF_ERR_IEN	=(u32InterruptFlag & DRVUART_BUFERRINT)?1:0;
-	tUART->IER.WAKE_IEN		=(u32InterruptFlag & DRVUART_WAKEUPINT)?1:0;
+	tUART->IER.WAKE_EN		=(u32InterruptFlag & DRVUART_WAKEUPINT)?1:0;
 	tUART->IER.LIN_RX_BRK_IEN=(u32InterruptFlag & DRVUART_LININT)?1:0;
 
 
@@ -505,44 +523,39 @@ void DrvUART_DisableInt(E_UART_PORT u32Port,uint32_t u32InterruptFlag)
 /*                                                                                                         */
 /* Parameter:                                                                                              */
 /*				 u32Port	   		  -[in]   UART Channel:  UART_PORT0 / UART_PORT1  /UART_PORT2          */
-/*               u32InterruptFlag     -[in]   DRVUART_MOSINT/DRVUART_RLSINT/DRVUART_THREINT 		  	   */
-/*											  DRVUART_RDAINT/DRVUART_TOUTINT                               */
+/*               u32InterruptFlag     -[in]   Interrupt Flag : DRVUART_MOSINT/DRVUART_RLSINT/ 		  	   */
+/*											               DRVUART_LININT_FLAG / DRVUART_BUFERRINT_FLAG    */
 /* Returns:                                                                                                */
 /*               E_SUCCESS      Successful                                                                 */
 /* Description:                                                                                            */
 /*               The function is used to clear UART specified interrupt flag                        	   */
 /*---------------------------------------------------------------------------------------------------------*/
-uint32_t DrvUART_ClearIntFlag(E_UART_PORT	u32Port,uint32_t u32InterruptFlag)
+uint32_t DrvUART_ClearIntFlag(E_UART_PORT u32Port,uint32_t u32InterruptFlag)
 {
 	UART_T * tUART;
 
 	tUART = (UART_T *)((uint32_t)UART0 + u32Port); 
 
-	if((u32InterruptFlag & DRVUART_RDAINT) == DRVUART_RDAINT)    			/* clear Rx read Interrupt */	   
-		tUART->DATA;
+    if((u32InterruptFlag & DRVUART_RDAINT_FLAG) ||
+       (u32InterruptFlag & DRVUART_THREINT_FLAG)||
+       (u32InterruptFlag & DRVUART_TOUTINT_FLAG))
+        return E_DRVUART_ARGUMENT;
 
-	if((u32InterruptFlag & DRVUART_RDAINT) == DRVUART_THREINT)    			/* clear Tx empty Interrupt */	   
-	{
-		tUART->DATA =0;														/* Write Data to TX FIFO to clear INT Flag */
-	}	
-
-	if((u32InterruptFlag & DRVUART_RLSINT)  == DRVUART_RLSINT)				/* clear Receive Line Status Interrupt */	   
+	if(u32InterruptFlag & DRVUART_RLSINT)			        	/* clear Receive Line Status Interrupt */	   
 	{
 		tUART->FSR.BIF = 1;
 		tUART->FSR.FEF = 1;
 		tUART->FSR.PEF = 1;
 	}
 
-	if((u32InterruptFlag & DRVUART_MOSINT)  == DRVUART_MOSINT)				/* clear Modem Interrupt */	   
+	if(u32InterruptFlag & DRVUART_MOSINT_FLAG)				    /* clear Modem Interrupt */	   
 		tUART->MSR.DCTSF = 1;
 
-  	if((u32InterruptFlag & DRVUART_TOUTINT) == DRVUART_TOUTINT)				/* clear Time-out Interrupt */	   
-		tUART->DATA;
 
-  	if((u32InterruptFlag & DRVUART_LININT)  == DRVUART_LININT)				/* clear LIN break Interrupt */	   
+  	if(u32InterruptFlag & DRVUART_LININT_FLAG)      			/* clear LIN break Interrupt */	   
 		tUART->ISR.LIN_RX_BREAK_IF = 1;
 
-	if((u32InterruptFlag & DRVUART_BUFERRINT)  == DRVUART_BUFERRINT)		/* clear Buffer ErrorInterrupt */	   
+	if(u32InterruptFlag & DRVUART_BUFERRINT_FLAG)       		/* clear Buffer ErrorInterrupt */	   
 	{
 		tUART->FSR.TX_OVER_IF = 1;
 		tUART->FSR.RX_OVER_IF = 1;
@@ -557,8 +570,10 @@ uint32_t DrvUART_ClearIntFlag(E_UART_PORT	u32Port,uint32_t u32InterruptFlag)
 /*                                                                                                         */
 /* Parameter:                                                                                              */
 /*				 u32Port	   	  	  -[in]   UART Channel:  UART_PORT0 / UART_PORT1 / UART_PORT2          */
-/*               u32InterruptFlag     -[in]   DRVUART_MOSINT / DRVUART_RLSINT / DRVUART_THREINT 		   */
-/*											  DRVUART_RDAINT/DRVUART_TOUTINT                               */
+/*               u32InterruptFlag     -[in]   DRVUART_LININT_FLAG / DRVUART_BUFERRINT_FLAG  		       */
+/*											  DRVUART_TOUTINT_FLAG/DRVUART_MOSINT_FLAG                     */
+/*                                            DRVUART_RLSINT_FLAG/DRVUART_THREINT_FLAG/DRVUART_RDAINT_FLAG */
+/*                                                                                                         */
 /* Returns:                                                                                                */
 /*               0: The specified interrupt is not happened.                                               */
 /*               1: The specified interrupt is happened.                                                   */
@@ -572,35 +587,9 @@ int32_t DrvUART_GetIntStatus(E_UART_PORT u32Port,uint32_t u32InterruptFlag)
 	UART_T * tUART;
 
 	tUART = (UART_T *)((uint32_t)UART0 + u32Port); 
+   
+    return (tUART->u32ISR & u32InterruptFlag)>>u32InterruptFlag ;
 
-	
-	switch(u32InterruptFlag)
-	{
-		case DRVUART_MOSINT:				  		/* MODEM Status Interrupt */
-				return tUART->ISR.MODEM_INT;
-		
-		case DRVUART_RLSINT:						/* Receive Line Status Interrupt */
-				return tUART->ISR.RLS_INT;
-
-		case DRVUART_THREINT:						/* Transmit Holding Register Empty Interrupt */
-				return tUART->ISR.THRE_INT;
-
-		case DRVUART_RDAINT:						/* Receive Data Available Interrupt */
-				return tUART->ISR.RDA_INT;
-
-		case DRVUART_TOUTINT:						/* Time-out Interrupt */
-				return tUART->ISR.TOUT_INT;
-
-		case DRVUART_LININT:						/* LIN Break Interrupt */
-				return tUART->ISR.LIN_Rx_Break_INT;
-
-		case DRVUART_BUFERRINT:						/* Buffer Error Interrupt */
-				return tUART->ISR.BUF_ERR_INT;
-
-		default:
-			return E_DRVUART_ARGUMENT;
-	}
-	
 }
 
 
@@ -819,7 +808,7 @@ void DrvUART_SetFnLIN(E_UART_PORT u32Port,uint16_t u16Mode,uint16_t u16BreakLeng
 
 	tUART->FUNSEL.FUN_SEL 	= FUN_LIN;
 	
-	tUART->ALTCON.LIN_BKFL   = u16BreakLength;
+	tUART->ALTCON.LIN_BKFL  = u16BreakLength;
 	tUART->ALTCON.LIN_TX_EN	= (u16Mode & MODE_TX) ?1:0;
 	tUART->ALTCON.LIN_RX_EN	= (u16Mode & MODE_RX) ?1:0;
 

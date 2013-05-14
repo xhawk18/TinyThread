@@ -45,11 +45,8 @@ static PFN_DRVPDMA_CALLBACK  g_pfnPDMACallback[MAX_CHANNEL_NUM][3]  = {
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvPDMA_Init(void)
 {
-    UNLOCKREG();
-
 	/* Enable PDMA Clock */
 	SYSCLK->AHBCLK.PDMA_EN  =1;		 	
-	LOCKREG();
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -68,9 +65,7 @@ void DrvPDMA_Close(void)
 	outpw(&PDMA_GCR->GCRCSR,0x0);
 	
 	/* Disable PDMA clock */
-	UNLOCKREG();
-	SYSCLK->AHBCLK.PDMA_EN  =0;
-	LOCKREG();					
+	SYSCLK->AHBCLK.PDMA_EN  =0;	
 	
 }
 
@@ -100,6 +95,7 @@ int32_t DrvPDMA_Open(E_DRVPDMA_CHANNEL_INDEX eChannel,STR_PDMA_T *sParam)
 {						  
 	PDMA_T * tPDMA;
 
+	SYSCLK->AHBCLK.PDMA_EN  =1;	
     /*-----------------------------------------------------------------------------------------------------*/
     /* Check PDMA channel                                                                                  */
     /*-----------------------------------------------------------------------------------------------------*/
@@ -123,7 +119,7 @@ int32_t DrvPDMA_Open(E_DRVPDMA_CHANNEL_INDEX eChannel,STR_PDMA_T *sParam)
 	tPDMA->CSR.DAD_SEL 	= sParam->sDestCtrl.eAddrDirection;
 	tPDMA->CSR.APB_TWS 	= sParam->u8TransWidth;
 	tPDMA->CSR.MODE_SEL = sParam->u8Mode;										/* Set Control Register */
-	tPDMA->BCR 			= sParam->i32ByteCnt;								    /* Set Byte Count Register */
+	tPDMA->u32BCR 			= sParam->i32ByteCnt;								    /* Set Byte Count Register */
 	return E_SUCCESS;    
 }
 
@@ -176,7 +172,7 @@ int32_t DrvPDMA_GetTransferLength(E_DRVPDMA_CHANNEL_INDEX eChannel, uint32_t* pu
     
 	tPDMA = (PDMA_T *)((uint32_t)PDMA0 + eChannel * CHANNEL_OFFSET); 
 	
-	*pu32TransferLength = tPDMA->BCR;      								    /* Get Transfer Length */
+	*pu32TransferLength = tPDMA->u32BCR;      								    /* Get Transfer Length */
 
     return E_SUCCESS;       
 }
@@ -307,7 +303,7 @@ int32_t	DrvPDMA_SetCHForAPBDevice(
 	   		break;
 		case eDRVPDMA_ADC:													/* Set ADC PDMA Channel */
 			if(eRWAPB)	
-				PDMA_GCR->PDSSR1.ADC_TXSEL	=	eChannel;
+				return 	E_DRVPDMA_FALSE_INPUT;
 			else
 				PDMA_GCR->PDSSR1.ADC_RXSEL	=	eChannel;
 	   		break;
@@ -383,7 +379,7 @@ int32_t DrvPDMA_GetCHForAPBDevice(E_DRVPDMA_APB_DEVICE eDevice,E_DRVPDMA_APB_RW 
 	   		
 		case eDRVPDMA_ADC:													/* Get ADC PDMA Channel */
 			if(eRWAPB)	
-				return PDMA_GCR->PDSSR1.ADC_TXSEL;
+				return E_DRVPDMA_FALSE_INPUT;
 			else
 				return PDMA_GCR->PDSSR1.ADC_RXSEL;
 
@@ -609,7 +605,7 @@ uint32_t DrvPDMA_GetInternalBufPointer(E_DRVPDMA_CHANNEL_INDEX eChannel)
    
 	tPDMA = (PDMA_T *)((uint32_t)PDMA0 + eChannel * CHANNEL_OFFSET); 
 
-	return (uint32_t)(tPDMA->POINT);
+	return (uint32_t)(tPDMA->u32POINT);
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -760,6 +756,103 @@ uint32_t DrvPDMA_GetRemainTransferCount(E_DRVPDMA_CHANNEL_INDEX eChannel)
 	return inpw(u32SFR);   
 }
 
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     DrvPDMA_SetSourceAddress				                                                   */
+/*                                                                                                         */
+/* Parameter:        																					   */	
+/*				 eChannel			-[in]   PDMA Source: eDRVPDMA_CHANNEL_0 ~ 8                            */
+/*               u32SourceAddr	   	-[in]   Source address                                                 */
+/* Returns:                                                                                                */
+/*               E_SUCCESS                  	Success                                                    */
+/*               E_DRVPDMA_ERR_PORT_INVALID     Invalid port number                                        */
+/* Description:                                                                                            */
+/*               The function is used to set source address for channelx                                   */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t	DrvPDMA_SetSourceAddress(E_DRVPDMA_CHANNEL_INDEX eChannel,uint32_t u32SourceAddr)
+{
+	PDMA_T * tPDMA;
+	    
+    if (eChannel > MAX_CHANNEL_NUM  )	    						   /* Check Channel is valid */
+        return E_DRVPDMA_ERR_PORT_INVALID;    
+    
+	tPDMA = (PDMA_T *)((uint32_t)PDMA0 + eChannel * CHANNEL_OFFSET); 
+																			
+	tPDMA->SAR = u32SourceAddr;	        						/* Set PDMA Channelx Source Address */
+
+    return E_SUCCESS;     													
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     DrvPDMA_GetSourceAddress                                                                  */
+/*                                                                                                         */
+/* Parameter:        																					   */	
+/*				 eChannel			-[in]   PDMA Source: eDRVPDMA_CHANNEL_0 ~ 8                            */
+/* Returns:                                                                                                */
+/*               Source address for channelx.                                                              */
+/*                                                                                                         */
+/* Description:                                                                                            */
+/*               The function is used to get source address for channelx                                   */
+/*---------------------------------------------------------------------------------------------------------*/
+uint32_t DrvPDMA_GetSourceAddress(E_DRVPDMA_CHANNEL_INDEX eChannel)
+{
+ 	PDMA_T * tPDMA;
+	   																/* Check Channel is valid */
+    if (eChannel > MAX_CHANNEL_NUM  )	    						
+        return E_DRVPDMA_ERR_PORT_INVALID;    
+
+	tPDMA = (PDMA_T *)((uint32_t)PDMA0 + eChannel * CHANNEL_OFFSET); 
+
+	return (uint32_t)(tPDMA->SAR);            					    /* Get PDMA Channelx Source Address  */   
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     DrvPDMA_SetDestAddress				                                                       */
+/*                                                                                                         */
+/* Parameter:        																					   */	
+/*				 eChannel			-[in]   PDMA Source: eDRVPDMA_CHANNEL_0 ~ 8                            */
+/*               u32DestAddr	   	-[in]   Destination address                                            */
+/* Returns:                                                                                                */
+/*               E_SUCCESS                  	Success                                                    */
+/*               E_DRVPDMA_ERR_PORT_INVALID     Invalid port number                                        */
+/* Description:                                                                                            */
+/*               The function is used to set destination address for channelx                              */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t	DrvPDMA_SetDestAddress(E_DRVPDMA_CHANNEL_INDEX eChannel,uint32_t u32DestAddr)
+{
+	PDMA_T * tPDMA;
+	    
+    if (eChannel > MAX_CHANNEL_NUM  )	    						   /* Check Channel is valid */
+        return E_DRVPDMA_ERR_PORT_INVALID;    
+    
+	tPDMA = (PDMA_T *)((uint32_t)PDMA0 + eChannel * CHANNEL_OFFSET); 
+																			
+	tPDMA->DAR = u32DestAddr;	        						/* Set PDMA Channelx Destination Address */
+
+    return E_SUCCESS;     													
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     DrvPDMA_GetDestAddress                                                                    */
+/*                                                                                                         */
+/* Parameter:        																					   */	
+/*				 eChannel			-[in]   PDMA Source: eDRVPDMA_CHANNEL_0 ~ 8                            */
+/* Returns:                                                                                                */
+/*               Destination address for channelx.                                                         */
+/*                                                                                                         */
+/* Description:                                                                                            */
+/*               The function is used to get destination address for channelx                              */
+/*---------------------------------------------------------------------------------------------------------*/
+uint32_t DrvPDMA_GetDestAddress(E_DRVPDMA_CHANNEL_INDEX eChannel)
+{
+ 	PDMA_T * tPDMA;
+	   																/* Check Channel is valid */
+    if (eChannel > MAX_CHANNEL_NUM  )	    						
+        return E_DRVPDMA_ERR_PORT_INVALID;    
+
+	tPDMA = (PDMA_T *)((uint32_t)PDMA0 + eChannel * CHANNEL_OFFSET); 
+
+	return (uint32_t)(tPDMA->DAR);            					    /* Get PDMA Channelx Destination Address  */   
+}
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvPDMA_GetVersion                                                                        */

@@ -29,11 +29,14 @@ static void (*_pfEINT1Callback)(void);
 /*---------------------------------------------------------------------------------------------------------*/
 void GPAB_IRQHandler(void)
 {
-	uint32_t u32GPAStatus, u32GPBStatus;
+	volatile uint32_t u32GPAStatus, u32GPBStatus;
 	
     /* Keep the interrupt source */
 	u32GPAStatus = GPIOA->ISRC;
 	u32GPBStatus = GPIOB->ISRC;
+
+    /* Avoid to clear EINT0/EINT1 INT flag */
+    u32GPBStatus = u32GPBStatus & ~(0x3 << 14);
 
     /* Clear the interrupt */
     GPIOA->ISRC = u32GPAStatus;
@@ -49,7 +52,7 @@ void GPAB_IRQHandler(void)
 /*---------------------------------------------------------------------------------------------------------*/
 void GPCDE_IRQHandler(void)
 {
-	uint32_t u32GPCStatus, u32GPDStatus, u32GPEStatus;
+	volatile uint32_t u32GPCStatus, u32GPDStatus, u32GPEStatus;
 	
     /* Keep the interrupt source */
 	u32GPCStatus = GPIOC->ISRC;
@@ -169,7 +172,7 @@ int32_t DrvGPIO_Close(E_DRVGPIO_PORT port, int32_t i32Bit)
     u32Reg = (uint32_t)&GPIOA->PMD + (port*PORT_OFFSET);    
     outpw(u32Reg, inpw(u32Reg) | (0x3<<(i32Bit*2)));
 	
-	GPIO_DBNCECON->ICLK_ON = 0; 
+	GPIO_DBNCECON->DBNCECON.ICLK_ON = 0; 
 
     return E_SUCCESS;
 }	
@@ -495,6 +498,49 @@ int32_t DrvGPIO_ClrPortMask(E_DRVGPIO_PORT port, int32_t i32MaskData)
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
+/* Function:    DrvGPIO_EnableDigitalInputBit                                                              */
+/*                                                                                                         */
+/* Parameter:        																					   */	
+/*	            port - [in]                                                                                */
+/*                  E_DRVGPIO_PORT, specify GPIO port. It could be E_GPA, E_GPB, E_GPC, E_GPD and E_GPE.   */
+/*	            i32Bit - [in]                                                                              */
+/*                  Specify pin of the GPIO port. It could be 0~15.                                        */
+/* Returns:                                                                                                */
+/*              E_SUCCESS										Operation successful                       */
+/* Description:                                                                                            */
+/*              Enable IO digital input path of the specified GPIO input pin.                              */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvGPIO_EnableDigitalInputBit(E_DRVGPIO_PORT port, int32_t i32Bit)
+{
+    volatile uint32_t u32Reg = (uint32_t)&GPIOA->OFFD + (port*PORT_OFFSET);
+
+    outpw(u32Reg, inpw(u32Reg) & ~(1 << (i32Bit+16)));
+
+    return E_SUCCESS;
+}
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:    DrvGPIO_DisableDigitalInputBit                                                             */
+/*                                                                                                         */
+/* Parameter:        																					   */	
+/*	            port - [in]                                                                                */
+/*                  E_DRVGPIO_PORT, specify GPIO port. It could be E_GPA, E_GPB, E_GPC, E_GPD and E_GPE.   */
+/*	            i32Bit - [in]                                                                              */
+/*                  Specify pin of the GPIO port. It could be 0~15.                                        */
+/* Returns:                                                                                                */
+/*              E_SUCCESS										Operation successful                       */
+/* Description:                                                                                            */
+/*              Disable IO digital input path of the specified GPIO input pin.                             */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvGPIO_DisableDigitalInputBit(E_DRVGPIO_PORT port, int32_t i32Bit)
+{
+    volatile uint32_t u32Reg = (uint32_t)&GPIOA->OFFD + (port*PORT_OFFSET);
+
+    outpw(u32Reg, inpw(u32Reg) | (1 << (i32Bit+16)));
+
+    return E_SUCCESS;
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
 /* Function:    DrvGPIO_EnableDebounce                                                                     */
 /*                                                                                                         */
 /* Parameter:        																					   */	
@@ -515,7 +561,7 @@ int32_t DrvGPIO_EnableDebounce(E_DRVGPIO_PORT port, int32_t i32Bit)
 
     outpw(u32Reg, inpw(u32Reg) | (1<<i32Bit));
 
-	GPIO_DBNCECON->ICLK_ON = 1;
+	GPIO_DBNCECON->DBNCECON.ICLK_ON = 1;
 
     return E_SUCCESS;
 }
@@ -541,6 +587,8 @@ int32_t DrvGPIO_DisableDebounce(E_DRVGPIO_PORT port, int32_t i32Bit)
         
     outpw(u32Reg, inpw(u32Reg) & ~(1<<i32Bit));
     
+    GPIO_DBNCECON->DBNCECON.ICLK_ON = 0;
+
 	return E_SUCCESS;
 }
 
@@ -570,9 +618,9 @@ int32_t DrvGPIO_SetDebounceTime(uint32_t u32CycleSelection, E_DRVGPIO_DBCLKSRC C
         return E_DRVGPIO_ARGUMENT;
     }
     
-	GPIO_DBNCECON->DBCLKSEL = u32CycleSelection ; 
+	GPIO_DBNCECON->DBNCECON.DBCLKSEL = u32CycleSelection ; 
 
-	GPIO_DBNCECON->DBCLKSRC = ClockSource ; 
+	GPIO_DBNCECON->DBNCECON.DBCLKSRC = ClockSource ; 
 
     return E_SUCCESS;
 }
@@ -589,7 +637,7 @@ int32_t DrvGPIO_SetDebounceTime(uint32_t u32CycleSelection, E_DRVGPIO_DBCLKSRC C
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvGPIO_GetDebounceSampleCycle(void)
 {   
-    return GPIO_DBNCECON->DBCLKSEL;
+    return GPIO_DBNCECON->DBNCECON.DBCLKSEL;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -778,6 +826,7 @@ void DrvGPIO_EnableEINT0(E_DRVGPIO_INT_TYPE TriggerType, E_DRVGPIO_INT_MODE Mode
 
    _pfEINT0Callback = pfEINT0Callback;
 
+    NVIC_SetPriority(EINT0_IRQn, (1<<__NVIC_PRIO_BITS) - 2);
     NVIC_EnableIRQ(EINT0_IRQn);
 }
 
@@ -856,6 +905,7 @@ void DrvGPIO_EnableEINT1(E_DRVGPIO_INT_TYPE TriggerType, E_DRVGPIO_INT_MODE Mode
 
     _pfEINT1Callback = pfEINT1Callback;
 
+    NVIC_SetPriority(EINT1_IRQn, (1<<__NVIC_PRIO_BITS) - 2);
     NVIC_EnableIRQ(EINT1_IRQn);
 }
 
@@ -909,21 +959,86 @@ int32_t DrvGPIO_GetIntStatus(E_DRVGPIO_PORT port)
 /*	            function - [in]                                                                            */
 /*                  E_DRVGPIO_FUNC, specified the relative GPIO pins as special function pins.             */
 /*                  It could be :                                                                          */
-/*                              E_FUNC_GPIO                                                                */
-/*                              E_FUNC_CLKO                                                                */
-/*                              E_FUNC_I2C0 / E_FUNC_I2C1                                                  */
-/*                              E_FUNC_I2S                                                                 */
-/*                              E_FUNC_CAN0                                                                */
+/*                              E_FUNC_GPIO,                                                               */
+/*                                  set all IO pins as GPIO pins.                                          */
+/*                              E_FUNC_CLKO,                                                               */
+/*                                  GPB-12 as Clock Driver Output pin.                                     */
+/*                              E_FUNC_I2C0 / E_FUNC_I2C1,                                                 */
+/*                                  GPA-8/9 as SDA0/SCL0 pins and GPA-10/11 as SDA1/SCL1 pins.             */
+/*                              E_FUNC_I2S,                                                                */
+/*                                  GPC-0~3 as I2S L/R channel clock, bit clock, data input&output pins,   */
+/*                                  GPA-15 as I2S master clock output pin.                                 */
+/*                              E_FUNC_CAN0,                                                               */
+/*                                  GPD-6 and GPD-7 as CAN0 RX and TX pins.                                */
 /*                              E_FUNC_ACMP0 / E_FUNC_ACMP1                                                */
-/*                              E_FUNC_SPI0 /E_ FUNC_SPI1 / E_FUNC_SPI2 / E_FUNC_SPI3 /                    */
+/*                                  GPC-6/7 as CPP0/CPN0 pins and GPC-14/15 as CPP1/CPN1 pins.             */
+/*                              E_FUNC_SPI0,                                                               */
+/*                                  GPC-0~3 as SPI0 SS0, CLK, MISO0, MOSI0,                                */
+/*                              E_FUNC_SPI0_SS1,                                                           */
+/*                                  GPB-10 as SPI0 SS1.                                                    */
+/*                              E_FUNC_SPI0_2BIT_MODE,                                                     */
+/*                                  GPC-4 and GPC-5 as SPI0 MISO1 and MOSI1.                               */
+/*                              E_FUNC_SPI1,                                                               */
+/*                                  GPC-8~11 as SPI1 SS0, CLK, MISO0, MOSI0,                               */
+/*                              E_FUNC_SPI1_SS1,                                                           */
+/*                                  GPB-9 as SPI1 SS1.                                                     */
+/*                              E_FUNC_SPI1_2BIT_MODE,                                                     */
+/*                                  GPC-12 and GPC-13 as SPI1 MISO1 and MOSI1.                             */
+/*                              E_FUNC_SPI2,                                                               */
+/*                                  GPD-0~3 as SPI2 SS0, CLK, MISO0, MOSI0.                                */
+/*                              E_FUNC_SPI2_SS1,                                                           */
+/*                                  GPA-7 as SPI2 SS1.                                                     */
+/*                              E_FUNC_SPI2_2BIT_MODE,                                                     */
+/*                                  GPD-4 and GPD-5 as SPI2 MISO1 and MOSI1.                               */
+/*                              E_FUNC_SPI3,                                                               */
+/*                                  GPD-8~11 as SPI3 SS0, CLK, MISO0, MOSI0.                               */
+/*                              E_FUNC_SPI3_SS1,                                                           */
+/*                                  GPB-14 as SPI3 SS1.                                                    */
+/*                              E_FUNC_SPI3_2BIT_MODE,                                                     */
+/*                                  GPD-12 and GPD-13 as SPI3 MISO1 and MOSI1.                             */
+/*                              E_FUNC_SPI0_QFN36PIN                                                       */
+/*                                  GPC-0~3 as SPI0 SS0, CLK, MISO0, MOSI0 for QFN36 package.              */
+/*                              E_FUNC_SPI0_SS1_QFN36PIN ,                                                 */
+/*                                  GPD-1 as SPI0 SS1 for QFN36 package.                                   */
+/*                              E_FUNC_SPI0_2BIT_MODE_QFN36PIN,                                            */
+/*                                  GPD-2 and GPD-3 as SPI0 MISO1 and MOSI1 for QFN36 package.             */
 /*                              E_FUNC_ADC0 / E_FUNC_ADC1 / E_FUNC_ADC2 / E_FUNC_ADC3 / 				   */
 /*								E_FUNC_ADC4 / E_FUNC_ADC5 / E_FUNC_ADC6 / E_FUNC_ADC7                      */
+/*                                  GPA-0~7 as ADC0~7 input pins.                                          */
 /*                              E_FUNC_EXTINT0 / E_FUNC_EXTINT1                                            */
+/*                                  GPB-14 and GPB-15 as external interrupt-0 and interrupt-1 pins.        */
 /*                              E_FUNC_TMR0 / E_FUNC_TMR1 / E_FUNC_TMR2 / E_FUNC_TMR3                      */
-/*                              E_FUNC_UART0 / E_FUNC_UART1 / E_FUNC_UART2                                 */
+/*                                  GPB-8~11 as external counter input or toggle outpu pins.               */
+/*                              E_FUNC_T0EX / E_FUNC_T1EX / E_FUNC_T2EX / E_FUNC_T3EX                      */
+/*                                  GPB-15, GPE-5, GPB-2 and GPB3 as external capture input pins.          */
+/*                              E_FUNC_UART0,                                                              */
+/*                                  GPB-0~3 as UART0 RX, TX, RTS and CTS pins.                             */
+/*                              E_FUNC_UART0_RX_TX,                                                        */
+/*                                  GPB-0 and GPB-1 as UART0 RX and TX pins.                               */
+/*                              E_FUNC_UART0_RTS_CTS,                                                      */
+/*                                  GPB-2 and GPB-3 as UART0 RTS and CTS pins.                             */
+/*                              E_FUNC_UART1,                                                              */
+/*                                  GPB-4~7 as UART1 RX, TX, RTS and CTS pins.                             */
+/*                              E_FUNC_UART1_RX_TX,                                                        */
+/*                                  GPB-4 and GPB-5 as UART1 RX and TX pins.                               */
+/*                              E_FUNC_UART1_RTS_CTS,                                                      */
+/*                                  GPB-6 and GPB-7 as UART1 RTS and CTS pins.                             */
+/*                              E_FUNC_UART2,                                                              */
+/*                                  GPD-14 and GPD-15 as UART2 RX and TX pins.                             */
 /*                              E_FUNC_PWM01 / E_FUNC_PWM23 / E_FUNC_PWM45 / E_FUNC_PWM67                  */
+/*                              E_FUNC_PWM0 / E_FUNC_PWM1 / E_FUNC_PWM2 / E_FUNC_PWM3                      */
+/*                              E_FUNC_PWM4 / E_FUNC_PWM5 / E_FUNC_PWM6 / E_FUNC_PWM7                      */
+/*                                  GPA-12~15 as PWM0~3, GPB-11 as PWM4, GPE-5 as PWM5, GPE0~1 as PWM6~7.  */
 /*                              E_FUNC_EBI_8B / E_FUNC_EBI_16B                                             */
-/*                              E_FUNC_SPI0_QFN36PIN                                                       */
+/*                                  GPB-12 and GPB-13 as AD0 and AD1,                                      */
+/*                                  GPC-14 and GPC-15 as AD2 and AD3,                                      */
+/*                                  GPC-6 and GPC-7 as AD4 and AD5,                                        */
+/*                                  GPA-7 and GPA-6 as AD6 and AD7,                                        */
+/*                                  GPA-5~1 as AD8 and AD12,                                               */
+/*                                  GPA-12~14 as AD13 and AD15,                                            */
+/*                                  GPB-6 and GPB-7 as ALE and nCS,                                        */
+/*                                  GPA-10 and GPA-11 as nWR and nRD,                                      */
+/*                                  GPB-2 and GPB-3 as nWRL and nWRH for 16 bit bus width only.            */
 /* Returns:                                                                                                */
 /*              E_SUCCESS										Operation successful                       */
 /*              E_DRVGPIO_ARGUMENT								Incorrect argument                         */
@@ -933,7 +1048,9 @@ int32_t DrvGPIO_GetIntStatus(E_DRVGPIO_PORT port)
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 {  
-	switch ( function )
+    uint8_t u8Offset;
+
+    switch ( function )
 	{
 		/*---------------------------------------------------------------------------------------------------------*/
 		/* GPIO                                                                                                    */
@@ -954,6 +1071,7 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		{
 		  	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<12));
 		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<10));
+		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
@@ -970,6 +1088,7 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		case E_FUNC_I2C1:
 		{
 		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x3<<10));
+		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
@@ -994,13 +1113,14 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		/* Analog Comparator                                                                                       */
 		/*---------------------------------------------------------------------------------------------------------*/
 		case E_FUNC_ACMP0:	
-		{
-          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x3<<6));
-		}break;
-
 		case E_FUNC_ACMP1:
 		{
-          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x3<<14));
+            if (function == E_FUNC_ACMP0)
+                u8Offset = 6;
+            else
+                u8Offset = 14;
+          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x3<<u8Offset));
+		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
@@ -1009,35 +1129,87 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		case E_FUNC_SPI0:	
 		{
           	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0xF<<0));
-          	outpw(&SYS->ALTMFP, (inpw(&SYS->ALTMFP) & ~(0xF<<5)) | (0x1<<0));
+          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0xF<<5));
 
+		}break;
+
+		case E_FUNC_SPI0_SS1:	
+		{
           	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<10));
           	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<0));
+		}break;
 
+		case E_FUNC_SPI0_2BIT_MODE:	
+		{
+          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x3<<4));
 		}break;
 
 		case E_FUNC_SPI1:
 		{
           	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0xF<<8));
+		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+		}break;
 
+		case E_FUNC_SPI1_SS1:	
+		{
           	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<9));
           	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<1));
+		}break;
+
+		case E_FUNC_SPI1_2BIT_MODE:	
+		{
+          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x3<<12));
 		}break;
 
 		case E_FUNC_SPI2:	
 		{
           	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0xF<<0));
-          	
-           	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x1<<9));
-            outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<7));
 		}break;				
+
+		case E_FUNC_SPI2_SS1:	
+		{
+           	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x1<<7));
+            outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<2));
+		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+		}break;
+
+		case E_FUNC_SPI2_2BIT_MODE:	
+		{
+          	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0x3<<4));
+		}break;
 
 		case E_FUNC_SPI3:	
 		{
           	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0xF<<8));
+ 		}break;
 
-           	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<14));
+		case E_FUNC_SPI3_SS1:	
+		{
+          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<14));
             outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<3));
+		}break;
+
+		case E_FUNC_SPI3_2BIT_MODE:	
+		{
+          	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0x3<<12));
+		}break;
+
+		/*---------------------------------------------------------------------------------------------------------*/
+		/* SPI - QFN36PIN                                                                                          */
+		/*---------------------------------------------------------------------------------------------------------*/
+		case E_FUNC_SPI0_QFN36PIN:	
+		{           		
+          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0xF<<0));
+ 		}break;
+
+		case E_FUNC_SPI0_SS1_QFN36PIN:	
+		{
+          	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0x1<<1));
+		}break;
+
+		case E_FUNC_SPI0_2BIT_MODE_QFN36PIN:	
+		{
+          	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0x1<<2));
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
@@ -1047,13 +1219,16 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		{
           	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<2));
         }
-		case E_FUNC_ADC0:
 		case E_FUNC_ADC1:
 		case E_FUNC_ADC2:
 		case E_FUNC_ADC3:
 		case E_FUNC_ADC4:
 		case E_FUNC_ADC5:
 		case E_FUNC_ADC6:
+        {
+		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+        }
+		case E_FUNC_ADC0:
 		{
           	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x1<<(function-E_FUNC_ADC0)));
         }break;
@@ -1062,18 +1237,16 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		/* External Interrupt                                                                                      */
 		/*---------------------------------------------------------------------------------------------------------*/		
 	  	case E_FUNC_EXTINT0:
-		{	
-          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<14));
+        {
           	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<3));
-		}break;
-
+        }
 	  	case E_FUNC_EXTINT1:
 		{	
-          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<15));
+          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<(14+(function-E_FUNC_EXTINT0))));
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
-		/* TIMER                                                                                                   */
+		/* TIMER - External Counter input or toggle output pins                                                    */
 		/*---------------------------------------------------------------------------------------------------------*/
 		case E_FUNC_TMR0:
 		{
@@ -1099,16 +1272,60 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
+		/* TIMER - External Capture input pins                                                                     */
+		/*---------------------------------------------------------------------------------------------------------*/
+		case E_FUNC_T0EX:
+		{
+          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<15));
+          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<24));
+		}break;
+	
+		case E_FUNC_T1EX:
+		{
+          	outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<5));
+          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<25));
+		}break;
+
+		case E_FUNC_T2EX:
+		{
+          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<2));
+          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<26));
+		}break;
+
+		case E_FUNC_T3EX:
+		{
+          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<3));
+          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<27));
+		}break;
+
+		/*---------------------------------------------------------------------------------------------------------*/
 		/* UART                                                                                                    */
 		/*--------------------------------------------------------------------------------------------------------*/
 		case E_FUNC_UART0:
-		{
-          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0xF<<0));
-		}break;
-
+		case E_FUNC_UART0_RX_TX:
+		case E_FUNC_UART0_RTS_CTS:
 		case E_FUNC_UART1:
+		case E_FUNC_UART1_RX_TX:
+		case E_FUNC_UART1_RTS_CTS:
 		{
-          	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0xF<<4));
+            if ((function >= E_FUNC_UART0) && (function <= E_FUNC_UART0_RTS_CTS))
+                u8Offset = 0;
+            else
+                u8Offset = 4;                                 
+            if ((function == E_FUNC_UART0) || (function == E_FUNC_UART1))
+          	{
+                outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0xF<<(0+u8Offset)));
+		  	    outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+            }else
+            if ((function == E_FUNC_UART0_RX_TX) || (function == E_FUNC_UART1_RX_TX))
+            {
+                outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x3<<(0+u8Offset)));
+            }else
+            if ((function == E_FUNC_UART0_RTS_CTS) || (function == E_FUNC_UART1_RTS_CTS))
+            {
+                outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x3<<(2+u8Offset)));
+		  	    outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+            }
 		}break;
 
 		case E_FUNC_UART2:
@@ -1119,28 +1336,74 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		/*---------------------------------------------------------------------------------------------------------*/
 		/* PWM                                                                                                     */
 		/*---------------------------------------------------------------------------------------------------------*/
+		case E_FUNC_PWM0:
+		case E_FUNC_PWM1:
 		case E_FUNC_PWM01:
 		{
-		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x3<<12));
+            if (function == E_FUNC_PWM01)
+            {
+    		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x3<<12));
+            }else
+            {
+    		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x1<<(12+(function-E_FUNC_PWM0))));
+            }
+	        outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
 		}break;
 
+		case E_FUNC_PWM2:
+		case E_FUNC_PWM3:
 		case E_FUNC_PWM23:
 		{
-		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x3<<14));
-		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<9));
+            if (function == E_FUNC_PWM23)
+            {
+    		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x3<<14));
+    		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<9));
+    		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+            }else
+            {
+    		  	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x1<<(14+(function-E_FUNC_PWM2))));
+                if (function == E_FUNC_PWM2)
+    		  	    outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<11));
+                else
+        		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x1<<9));
+            }
 		}break;
 
+		case E_FUNC_PWM4:
+		case E_FUNC_PWM5:
 		case E_FUNC_PWM45:
 		{
-		  	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<11));
-		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<4));
-		  	outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<5));
+            if (function == E_FUNC_PWM45)
+    		{
+              	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<11));
+    		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<4));
+              	outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<5));
+            }else
+            if (function == E_FUNC_PWM4)
+            {
+              	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x1<<11));
+    		  	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x1<<4));
+            }else
+            {
+              	outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<5));
+            }
 		}break;
 
+		case E_FUNC_PWM6:
+		case E_FUNC_PWM7:
 		case E_FUNC_PWM67:
 		{
-		  	outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1));
-		  	outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<1));
+            if (function == E_FUNC_PWM67)
+		  	{
+                outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x3<<0));
+            }else
+            if (function == E_FUNC_PWM6)
+            {
+                outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<0));
+            }else
+            {
+                outpw(&SYS->GPEMFP, inpw(&SYS->GPEMFP) | (0x1<<1));
+            }
 		}break;
 
 		/*---------------------------------------------------------------------------------------------------------*/
@@ -1148,17 +1411,28 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
 		/*---------------------------------------------------------------------------------------------------------*/
 		case E_FUNC_EBI_16B:	
 		{
-			// Enable nWRH & nWRL for support Byte-Write in 16bit Data Width Device(SARM) 
+			// Enable nWRH & nWRL for support Byte-Write in 16bit Data Width Device(SRAM) 
           	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x3<<2));
           	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x3<<13));			
 		
 			// Enable EBI AD High-byte, bit 15~8
-          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0xFF<<16));			
           	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x703E));
+          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0xFF<<16));			
 		}
 				
 		case E_FUNC_EBI_8B:	
 		{
+            if (function == E_FUNC_EBI_8B)
+            {
+    			// Disable nWRH & nWRL for support Byte-Write in 16bit Data Width Device(SRAM) 
+              	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) & ~(0x3<<2));
+              	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0x3<<13));			
+    		
+    			// Disable EBI AD High-byte, bit 15~8
+              	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) & ~(0x703E));
+              	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0xFF<<16));			
+            }
+
 			// Enable EBI_EN and EBI_MCLK_EN
           	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) | (0x3<<11));			
           	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x1<<8));
@@ -1171,17 +1445,6 @@ int32_t DrvGPIO_InitFunction(E_DRVGPIO_FUNC function)
           	outpw(&SYS->GPAMFP, inpw(&SYS->GPAMFP) | (0x3<<6));
           	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0x3<<6) | (0x3<<14));
           	outpw(&SYS->GPBMFP, inpw(&SYS->GPBMFP) | (0x3<<12));
-		}break;
-
-		/*---------------------------------------------------------------------------------------------------------*/
-		/* SPI - QFN36PIN                                                                                          */
-		/*---------------------------------------------------------------------------------------------------------*/
-		case E_FUNC_SPI0_QFN36PIN:	
-		{           		
-          	outpw(&SYS->GPCMFP, inpw(&SYS->GPCMFP) | (0xF<<0));
-          	outpw(&SYS->ALTMFP, inpw(&SYS->ALTMFP) & ~(0xF<<5));
-
-          	outpw(&SYS->GPDMFP, inpw(&SYS->GPDMFP) | (0x1<<1));
 		}break;
 
 		default:

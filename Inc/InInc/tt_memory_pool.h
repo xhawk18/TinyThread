@@ -36,72 +36,75 @@ LIST_T *pMemListHeader = memInit (
 
 
 /* Initialize a memory pool by connecting the memory blocks with list structure. */
-__INLINE LIST_T *__memInit (void *pBuffer, size_t szBuffer, size_t szEach,
-	size_t szListOffset)
+TT_INLINE LIST_T *__memInit (
+	void *buffer,
+	size_t buffer_size,
+	size_t each_size,
+	size_t list_offset)
 {
-	if (szBuffer < sizeof (LIST_T))
+	if (buffer_size < sizeof (LIST_T))
 		return NULL;
 	else
 	{
 		size_t i;
-		LIST_T *pListHead = (LIST_T *) pBuffer;
-		listInit (pListHead);
+		LIST_T *head = (LIST_T *)buffer;
+		listInit (head);
 	
-		szEach = MEMPOOL_ALIGN_SIZE (szEach);
+		each_size = MEMPOOL_ALIGN_SIZE (each_size);
 		for (i = MEMPOOL_ALIGN_SIZE (sizeof (LIST_T));
-			i + szEach <= szBuffer; i += szEach)
+			i + each_size <= buffer_size; i += each_size)
 		{
-			LIST_T *pListThis = (LIST_T *)((char *) pBuffer + i + szListOffset);
-			listInit (pListThis);
-			listAttach (pListHead, pListThis);
+			LIST_T *node = (LIST_T *)((char *)buffer + i + list_offset);
+			listInit (node);
+			listAttach (head, node);
 		}
-		return pListHead;
+		return head;
 	}
 }
 
-#define memInit(pBuffer,szBuffer,TYPE_T) \
-	__memInit (pBuffer, szBuffer, sizeof (TYPE_T), (size_t) &((TYPE_T *) 0)->list)
+#define memInit(buffer,buffer_size,TYPE_T) \
+	__memInit (buffer, buffer_size, sizeof (TYPE_T), (size_t) &((TYPE_T *) 0)->list)
 
 
 /* Allocate a memory blocks from a list structure. */
-__INLINE LIST_T *memNew (void *pBuffer)
+TT_INLINE LIST_T *memNew (void *buffer)
 {
-	LIST_T *pReturn;
-	LIST_T *pListHead = (LIST_T *) pBuffer;
+	LIST_T *node;
+	LIST_T *head = (LIST_T *)buffer;
 
-	if (pListHead->pNext == pListHead)
+	if (listIsEmpty (head))
 	{
-		pReturn = NULL;	//No enough buffer.
+		node = NULL;	//No enough buffer.
 	}
 	else
 	{
-		pReturn = pListHead->pNext;
-		listDetach (pReturn);
+		node = listGetNext (head);
+		listDetach (node);
 	}
-	return pReturn;
+	return node;
 }
 
 
 /* Free a memory blocks (to the list structure). */
-__INLINE void memDel (void *pBuffer, LIST_T *pListThis)
+TT_INLINE void memDel (void *buffer, LIST_T *node)
 {
-	LIST_T *pListHead = (LIST_T *) pBuffer;
-	listAttach (pListHead, pListThis);
+	LIST_T *head = (LIST_T *)buffer;
+	listAttach (head, node);
 }
 
 
 /* Get the memory block. */
-__INLINE LIST_T *memGet (void *pBuffer, int nIndex)
+TT_INLINE LIST_T *memGet (void *buffer, int index)
 {
-	LIST_T *pListHead = (LIST_T *) pBuffer;
-	return listGetAt (pListHead, nIndex);
+	LIST_T *head = (LIST_T *)buffer;
+	return listGetAt (head, index);
 }
 
 /* Get number of memory blocks. */
-__INLINE int memNum (void *pBuffer)
+TT_INLINE int memNum (void *buffer)
 {
-	LIST_T *pListHead = (LIST_T *) pBuffer;
-	return listLength (pListHead);
+	LIST_T *head = (LIST_T *)buffer;
+	return listLength (head);
 }
 
 

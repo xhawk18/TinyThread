@@ -9,6 +9,14 @@
 #ifdef __cplusplus
  extern "C" {
 #endif 
+/*---------------------------------------------------------------------------------------------------------*/
+/* Macro Definition                                                                                        */
+/*---------------------------------------------------------------------------------------------------------*/
+
+//#define DEBUG_ENABLE_SEMIHOST   /* To enable semihosted. !!!The SEMIHOSTED of startup_NUC1xx.s must be {TRUE} */
+
+/* Using UART0 or UART1 */  
+#define DEBUG_PORT   0 		    /*0:UART0  1:UART1 2:UART2 */
 
 /*----------------------------------------------------------------------------
   Define SYSCLK
@@ -20,7 +28,7 @@
 #define __HSI       (__IRC22M)      /* Factory Default is internal 22MHz */
 
 extern uint32_t SystemCoreClock;                   /*!< System Clock Frequency (Core Clock) */
-
+extern uint32_t CyclesPerUs;                       /* Cycles per micro second */
 
 /**
  * Initialize the system

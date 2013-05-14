@@ -12,8 +12,8 @@
 /*  Define Version number								                                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 #define DRVGPIO_MAJOR_NUM       1
-#define DRVGPIO_MINOR_NUM	    02
-#define DRVGPIO_BUILD_NUM	    002
+#define DRVGPIO_MINOR_NUM	    04
+#define DRVGPIO_BUILD_NUM	    005
 
 /*---------------------------------------------------------------------------------------------------------*/
 /*  Version define with SysInfra				                                                           */
@@ -32,8 +32,8 @@ typedef void (*GPIO_GPCDE_CALLBACK)(uint32_t u32GPCStatus, uint32_t u32GPDStatus
 typedef void (*GPIO_EINT0_CALLBACK)(void);
 typedef void (*GPIO_EINT1_CALLBACK)(void);
 
-/* Define GPIO[n] Pin I/O Bit Output Control. Only NUC100 Low Density Series support this feature. */
-#define _DRVGPIO_DOUT(PortNum, PinNum)      (*((uint32_t *) ((GPIO_BIT_ADDR_BASE+(0x40*PortNum)) + (0x4*PinNum))))    
+/* Define GPIO[n] Pin I/O Bit Output/Input Control. Only NUC1x0xxxBN and NUC1x0xxxCN Series support this feature. */
+#define _DRVGPIO_DOUT(PortNum, PinNum)      (*((volatile uint32_t *) ((GPIO_BIT_ADDR_BASE+(0x40*PortNum)) + (0x4*PinNum))))    
 #define GPA_0	            _DRVGPIO_DOUT(0, 0)
 #define GPA_1	            _DRVGPIO_DOUT(0, 1)
 #define GPA_2	            _DRVGPIO_DOUT(0, 2)
@@ -98,6 +98,22 @@ typedef void (*GPIO_EINT1_CALLBACK)(void);
 #define GPD_13	            _DRVGPIO_DOUT(3, 13)
 #define GPD_14	            _DRVGPIO_DOUT(3, 14)
 #define GPD_15	            _DRVGPIO_DOUT(3, 15)
+#define GPE_0	            _DRVGPIO_DOUT(4, 0)
+#define GPE_1	            _DRVGPIO_DOUT(4, 1)
+#define GPE_2	            _DRVGPIO_DOUT(4, 2)
+#define GPE_3	            _DRVGPIO_DOUT(4, 3)
+#define GPE_4	            _DRVGPIO_DOUT(4, 4)
+#define GPE_5	            _DRVGPIO_DOUT(4, 5)
+#define GPE_6	            _DRVGPIO_DOUT(4, 6)
+#define GPE_7	            _DRVGPIO_DOUT(4, 7)
+#define GPE_8	            _DRVGPIO_DOUT(4, 8)
+#define GPE_9	            _DRVGPIO_DOUT(4, 9)
+#define GPE_10	            _DRVGPIO_DOUT(4, 10)
+#define GPE_11	            _DRVGPIO_DOUT(4, 11)
+#define GPE_12	            _DRVGPIO_DOUT(4, 12)
+#define GPE_13	            _DRVGPIO_DOUT(4, 13)
+#define GPE_14	            _DRVGPIO_DOUT(4, 14)
+#define GPE_15	            _DRVGPIO_DOUT(4, 15)
 
 typedef enum 
 {
@@ -138,11 +154,20 @@ typedef enum
 typedef enum
 {
 	E_FUNC_GPIO,    E_FUNC_CLKO,    E_FUNC_I2C0,    E_FUNC_I2C1,    E_FUNC_I2S,     E_FUNC_CAN0,	
-    E_FUNC_ACMP0,   E_FUNC_ACMP1,   E_FUNC_SPI0,    E_FUNC_SPI1,    E_FUNC_SPI2,    E_FUNC_SPI3,
+    E_FUNC_ACMP0,   E_FUNC_ACMP1,   
+    E_FUNC_SPI0,    E_FUNC_SPI0_SS1,    E_FUNC_SPI0_2BIT_MODE,
+    E_FUNC_SPI1,    E_FUNC_SPI1_SS1,    E_FUNC_SPI1_2BIT_MODE,
+    E_FUNC_SPI2,    E_FUNC_SPI2_SS1,    E_FUNC_SPI2_2BIT_MODE,
+    E_FUNC_SPI3,    E_FUNC_SPI3_SS1,    E_FUNC_SPI3_2BIT_MODE,      
+    E_FUNC_SPI0_QFN36PIN,   E_FUNC_SPI0_SS1_QFN36PIN,   E_FUNC_SPI0_2BIT_MODE_QFN36PIN,
     E_FUNC_ADC0,    E_FUNC_ADC1,    E_FUNC_ADC2,    E_FUNC_ADC3,    E_FUNC_ADC4,    E_FUNC_ADC5,
     E_FUNC_ADC6,    E_FUNC_ADC7,    E_FUNC_EXTINT0, E_FUNC_EXTINT1, E_FUNC_TMR0,    E_FUNC_TMR1,      
-    E_FUNC_TMR2,    E_FUNC_TMR3,    E_FUNC_UART0,   E_FUNC_UART1,   E_FUNC_UART2,   E_FUNC_PWM01,
-    E_FUNC_PWM23,   E_FUNC_PWM45,   E_FUNC_PWM67,   E_FUNC_EBI_8B,  E_FUNC_EBI_16B, E_FUNC_SPI0_QFN36PIN     
+    E_FUNC_TMR2,    E_FUNC_TMR3,    E_FUNC_T0EX,    E_FUNC_T1EX,    E_FUNC_T2EX,    E_FUNC_T3EX,
+    E_FUNC_UART0,   E_FUNC_UART0_RX_TX, E_FUNC_UART0_RTS_CTS,
+    E_FUNC_UART1,   E_FUNC_UART1_RX_TX, E_FUNC_UART1_RTS_CTS,       E_FUNC_UART2,
+    E_FUNC_PWM01,   E_FUNC_PWM23,   E_FUNC_PWM45,   E_FUNC_PWM67,   E_FUNC_PWM0,    E_FUNC_PWM1,
+    E_FUNC_PWM2,    E_FUNC_PWM3,    E_FUNC_PWM4,    E_FUNC_PWM5,    E_FUNC_PWM6,    E_FUNC_PWM7,    
+    E_FUNC_EBI_8B,  E_FUNC_EBI_16B,          
 } E_DRVGPIO_FUNC;
 			  
 /*---------------------------------------------------------------------------------------------------------*/
@@ -163,6 +188,8 @@ int32_t DrvGPIO_ClrBitMask(E_DRVGPIO_PORT port, int32_t i32Bit);
 int32_t DrvGPIO_SetPortMask(E_DRVGPIO_PORT port, int32_t i32MaskData);
 int32_t DrvGPIO_GetPortMask(E_DRVGPIO_PORT port);
 int32_t DrvGPIO_ClrPortMask(E_DRVGPIO_PORT port, int32_t i32MaskData);
+int32_t DrvGPIO_EnableDigitalInputBit(E_DRVGPIO_PORT port, int32_t i32Bit);
+int32_t DrvGPIO_DisableDigitalInputBit(E_DRVGPIO_PORT port, int32_t i32Bit);
 int32_t DrvGPIO_EnableDebounce(E_DRVGPIO_PORT port, int32_t i32Bit);
 int32_t DrvGPIO_DisableDebounce(E_DRVGPIO_PORT port, int32_t i32Bit);
 int32_t DrvGPIO_SetDebounceTime(uint32_t u32CycleSelection, E_DRVGPIO_DBCLKSRC ClockSource);
