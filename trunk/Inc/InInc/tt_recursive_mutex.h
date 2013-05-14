@@ -18,6 +18,7 @@ typedef struct
 
 void tt_rmutex_init (TT_RMUTEX_T *rmutex);
 void tt_rmutex_lock (TT_RMUTEX_T *rmutex);
+int tt_rmutex_lock_timeout (TT_RMUTEX_T *rmutex, uint32_t msec);
 int tt_rmutex_try_lock (TT_RMUTEX_T *rmutex);
 int tt_rmutex_can_lock (TT_RMUTEX_T *rmutex);
 void tt_rmutex_unlock (TT_RMUTEX_T *rmutex);

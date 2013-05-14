@@ -6,17 +6,43 @@ extern "C" {
 #endif
 
 
-extern int	g_iIRQ_disable_count;
-extern bool	g_bIRQ_real_disable;
+extern volatile int	g_iIRQ_disable_count;
+extern volatile bool	g_bIRQ_real_disable;
 
-#define TT_SYS_NO_PRINTF
+//#define TT_SYS_NO_PRINTF
 
 
 /* Implement in tt_syscall.s */
-bool sysIsInIRQ (void);
+#if defined __CC_ARM
+#	if __CM0_CMSIS_VERSION < 0x00020000
+TT_INLINE bool tt_is_in_irq (void)
+{
+	register uint32_t __regIPSR          __asm("ipsr");
+	return(__regIPSR);
+}	
+#	else
+TT_INLINE bool tt_is_in_irq (void)
+{
+	return __get_IPSR ();
+}
+#endif
+#elif defined __GNUC__
+__attribute__((always_inline )) TT_INLINE bool tt_is_in_irq (void)
+{
+	uint32_t result;
+	__asm__ volatile ("MRS %0, ipsr" : "=r" (result) );
+	return(result);
+}
+#elif defined __ICCARM__
+#	pragma diag_suppress=Pe940
+TT_INLINE bool tt_is_in_irq (void)
+{
+	__asm("	MRS R0, IPSR	");
+}
+#endif
 
 
-__INLINE bool sysIsIRQDisabled (void)
+TT_INLINE bool tt_is_irq_disabled (void)
 {
 	int primask = __get_PRIMASK ();
 	if ((primask & 1) == 0)
@@ -26,13 +52,13 @@ __INLINE bool sysIsIRQDisabled (void)
 }
 
 
-__INLINE void sysEnableIRQ (void)
+TT_INLINE void tt_enable_irq (void)
 {
-	if (!sysIsIRQDisabled ())
+	if (!tt_is_irq_disabled ())
 	{
 		__set_PRIMASK(1);
 #if !defined TT_SYS_NO_PRINTF
-		printf ("Not call sysDisableIRQ before sysEnableIRQ\n");
+		printf ("Not call tt_disable_irq before tt_enable_irq\n");
 #endif
 		while (1);
 	}
@@ -48,9 +74,9 @@ __INLINE void sysEnableIRQ (void)
 }
 
 
-__INLINE void sysDisableIRQ (void)
+TT_INLINE void tt_disable_irq (void)
 {
-	if (sysIsIRQDisabled ())
+	if (tt_is_irq_disabled ())
 	{
 		if (g_iIRQ_disable_count == 0)
 			g_bIRQ_real_disable = false;
@@ -67,7 +93,7 @@ __INLINE void sysDisableIRQ (void)
 
 
 #ifdef DEBUG_DUMP_IRQ
-__INLINE void sysDumpIRQ (void)
+TT_INLINE void tt_sys_dump_irq (void)
 {
 #if !defined TT_SYS_NO_PRINTF
 	printf ("IRQ level: %d\n", g_iIRQ_disable_count);
@@ -78,24 +104,24 @@ __INLINE void sysDumpIRQ (void)
 
 
 #if !defined TT_SYS_NO_PRINTF
-#define sysSafePrintf(...) \
+#define tt_printf(...) \
 do \
 { \
-	sysDisableIRQ (); \
+	tt_disable_irq (); \
 	printf(__VA_ARGS__); \
-	sysEnableIRQ (); \
+	tt_enable_irq (); \
 } while (0)
 #else
-#define sysSafePrintf(...)
+#define tt_printf(...)
 #endif
 
 
 
-#define ASSERT(expr) \
+#define TT_ASSERT(expr) \
 if (!(expr)) \
 { \
-	sysSafePrintf ("Assert failed in line %d (%s):\n    %s\n", __LINE__, __FILE__, #expr); \
-	sysDisableIRQ (); \
+	tt_printf ("Assert failed in line %d (%s):\n    %s\n", __LINE__, __FILE__, #expr); \
+	tt_disable_irq (); \
 	while (1); \
 }
 

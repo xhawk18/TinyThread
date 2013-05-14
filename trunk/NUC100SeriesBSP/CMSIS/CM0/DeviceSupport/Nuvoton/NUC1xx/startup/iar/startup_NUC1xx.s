@@ -6,7 +6,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-SEMIHOSTED       SET    0
 
 
     MODULE  ?cstartup
@@ -140,19 +139,37 @@ Reset_Handler
     PUBWEAK RTC_IRQHandler  
     SECTION .text:CODE:REORDER(2)
 HardFault_Handler 
-    IF SEMIHOSTED
-                LDR    R0, [R13, #24]        ; Get previous PC
-                LDRH   R1, [R0]              ; Get instruction
-                LDR    R2, =0xBEAB           ; The sepcial BKPT instruction
-                CMP    R1, R2                ; Test if the instruction at previous PC is BKPT
-                BNE    HardFault_Handler_Ret ; Not BKPT
-        
-                ADDS   R0, #4                ; Skip BKPT and next line
-                STR    R0, [R13, #24]        ; Save previous PC
-        
-                BX     LR
+#ifdef DEBUG_ENABLE_SEMIHOST
+        ; Check if the interrupt comes from thread or not
+        ; When enterring interrupt hander
+        ;    if CurrentMode==Mode_Handler then
+        ;        LR = 0xFFFFFFF1;	(previous stack: MSP)
+        ;    else
+        ;    if CONTROL<1> == '0' then
+        ;        LR = 0xFFFFFFF9;	(previous stack: MSP)
+        ;    else
+        ;        LR = 0xFFFFFFFD;	(previous stack: PSP)
+        MOV     R0, LR
+        LSLS    R0, R0, #29           ; Check bit 2
+        BMI     SP_is_PSP             ; previous stack is PSP
+        MRS     R0, MSP               ; previous stack is MSP, read MSP
+        B       SP_Read_Ready
+SP_is_PSP
+        MRS     R0, PSP               ; Read PSP
+SP_Read_Ready
+        LDR     R1, [R0, #24]         ; Get previous PC
+        LDRH    R3, [R1]              ; Get instruction
+        LDR     R2, =0xBEAB           ; The sepcial BKPT instruction
+        CMP     R3, R2                ; Test if the instruction at previous PC is BKPT
+        BNE     HardFault_Handler_Ret ; Not BKPT
+
+        ADDS    R1, #4                ; Skip BKPT and next line
+        STR     R1, [R0, #24]         ; Save previous PC
+
+        BX      LR
 HardFault_Handler_Ret
-    ENDIF
+
+#endif
 NMI_Handler       
 SVC_Handler       
 PendSV_Handler    
@@ -189,8 +206,8 @@ RTC_IRQHandler
 Default_Handler          
     B Default_Handler         
 
-    IF SEMIHOSTED
 
+#ifdef DEBUG_ENABLE_SEMIHOST
 
 
 ; int SH_DoCommand(int n32In_R0, int n32In_R1, int *pn32Out_R0);
@@ -203,25 +220,25 @@ Default_Handler
 ;	0: No ICE debug
 ;	1: ICE debug
 SH_DoCommand	
-                EXPORT SH_DoCommand
-                BKPT   0xAB                  ; Wait ICE or HardFault
+        EXPORT SH_DoCommand
+        BKPT   0xAB                  ; Wait ICE or HardFault
                                      ; ICE will step over BKPT directly
                                      ; HardFault will step BKPT and the next line
-                B      SH_ICE
+        B      SH_ICE
 SH_HardFault                         ; Captured by HardFault
-                MOVS   R0, #0                ; Set return value to 0
-                BX     lr                    ; Return
+        MOVS   R0, #0                ; Set return value to 0
+        BX     lr                    ; Return
 SH_ICE                               ; Captured by ICE
-                ; Save return value
-                CMP    R2, #0
-                BEQ    SH_End
-                STR    R0, [R2]              ; Save the return value to *pn32Out_R0
+        ; Save return value
+        CMP    R2, #0
+        BEQ    SH_End
+        STR    R0, [R2]              ; Save the return value to *pn32Out_R0
 SH_End
-                MOVS   R0, #1                ; Set return value to 1
-                BX     lr                    ; Return
+        MOVS   R0, #1                ; Set return value to 1
+        BX     lr                    ; Return
 
+#endif
 
-    ENDIF
     
 
     

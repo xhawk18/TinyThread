@@ -6,8 +6,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-                 GBLL    SEMIHOSTED
-SEMIHOSTED       SETL    {FALSE}
 
 
 CLK_BA_base      EQU 0x50000200
@@ -295,17 +293,35 @@ NMI_Handler     PROC
 HardFault_Handler\
                 PROC
                 EXPORT  HardFault_Handler         [WEAK]
-    IF SEMIHOSTED
-                LDR    R0, [R13, #24]        ; Get previous PC
-                LDRH   R1, [R0]              ; Get instruction
-                LDR    R2, =0xBEAB           ; The sepcial BKPT instruction
-                CMP    R1, R2                ; Test if the instruction at previous PC is BKPT
-                BNE    HardFault_Handler_Ret ; Not BKPT
+
+    IF :DEF:DEBUG_ENABLE_SEMIHOST
+                ; Check if the interrupt comes from thread or not
+                ; When enterring interrupt hander
+                ;    if CurrentMode==Mode_Handler then
+                ;        LR = 0xFFFFFFF1;	(previous stack: MSP)
+                ;    else
+                ;    if CONTROL<1> == '0' then
+                ;        LR = 0xFFFFFFF9;	(previous stack: MSP)
+                ;    else
+                ;        LR = 0xFFFFFFFD;	(previous stack: PSP)
+                MOV     R0, LR
+                LSLS    R0, R0, #29           ; Check bit 2
+                BMI     SP_is_PSP             ; previous stack is PSP
+                MRS     R0, MSP               ; previous stack is MSP, read MSP
+                B       SP_Read_Ready
+SP_is_PSP
+                MRS     R0, PSP               ; Read PSP
+SP_Read_Ready
+                LDR     R1, [R0, #24]         ; Get previous PC
+                LDRH    R3, [R1]              ; Get instruction
+                LDR     R2, =0xBEAB           ; The sepcial BKPT instruction
+                CMP     R3, R2                ; Test if the instruction at previous PC is BKPT
+                BNE     HardFault_Handler_Ret ; Not BKPT
         
-                ADDS   R0, #4                ; Skip BKPT and next line
-                STR    R0, [R13, #24]        ; Save previous PC
+                ADDS    R1, #4                ; Skip BKPT and next line
+                STR     R1, [R0, #24]         ; Save previous PC
         
-                BX     LR
+                BX      LR
 HardFault_Handler_Ret
     ENDIF
                 B       .
@@ -415,7 +431,7 @@ __user_initial_stackheap
 
                 ENDIF
 
-    IF SEMIHOSTED
+    IF :DEF:DEBUG_ENABLE_SEMIHOST
 
                 ALIGN
 
@@ -428,7 +444,7 @@ __user_initial_stackheap
 ; Return
 ;	0: No ICE debug
 ;	1: ICE debug
-SH_DoCommand	
+SH_DoCommand  PROC  
                 EXPORT SH_DoCommand
                 BKPT   0xAB                  ; Wait ICE or HardFault
                                      ; ICE will step over BKPT directly
@@ -447,5 +463,6 @@ SH_End
                 BX     lr                    ; Return
 
                 ALIGN
+				ENDP
     ENDIF
                 END

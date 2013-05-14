@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "tt_sys.h"
 #include "tt_list.h"
@@ -48,7 +49,7 @@ typedef struct
 } TT_THREAD_PUSH_STACK;
 
 
-typedef struct tagTT_THREAD_T
+typedef struct tagTT_THREAD
 {
 	uint32_t uSP;
 
@@ -72,18 +73,36 @@ typedef struct tagTT_THREAD_T
 
 #ifdef	TT_SUPPORT_DUMP_THREAD
 	LIST_T					list_threads;		//list node for the threads list
-#endif
-	
-#ifdef	TT_SUPPORT_SLEEP
-	uint32_t				wakeup_time;		//the wakeup time(ticks) for sleeping thread
-#endif
-	
+#endif	
 	char					name[8];
 } TT_THREAD_T;
 
 
 /* Founction for internal use */
-extern void tt_syscall(void *arg, void (*on_schedule)(void *));
+
+/* void (*on_schedule)(void) or void (*on_schedule)(void *arg) */
+#if defined __CC_ARM
+extern void __svc(0x18) tt_syscall (void *arg, void (*on_schedule) ());
+#elif defined __ICCARM__
+#	pragma swi_number=0x18
+__swi void tt_syscall (void *arg, void (*on_schedule) ());
+#else
+#if 0
+__attribute__ ((noinline)) void tt_syscall  (void *arg, void (*on_schedule) ());
+#else
+TT_INLINE void tt_syscall  (void *arg, void (*on_schedule) ())
+{
+	register int r0 __asm__ ("r0") = (int)arg;
+	register int r1 __asm__ ("r1") = (int)on_schedule;
+	__asm__ volatile (
+		"	SVC		0x18					\n"	// Call SVC
+		:
+		: "r"(r0), "r"(r1)
+	);
+}
+#endif
+#endif
+
 extern void __tt_schedule (void);
 extern void __tt_schedule_yield (void *);
 extern void tt_set_thread_running (TT_THREAD_T *thread);

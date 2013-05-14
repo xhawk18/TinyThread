@@ -15,7 +15,7 @@ void tt_rmutex_init (TT_RMUTEX_T *rmutex)
 void tt_rmutex_lock (TT_RMUTEX_T *rmutex)
 {
 	TT_THREAD_T *thread;
-	if (sysIsInIRQ ())
+	if (tt_is_in_irq ())
 		thread = (TT_THREAD_T *) -1;
 	else
 		thread = tt_thread_self ();
@@ -28,12 +28,32 @@ void tt_rmutex_lock (TT_RMUTEX_T *rmutex)
 	rmutex->lock_count++;
 }
 
+/* Available in: thread. */
+int tt_rmutex_lock_timeout(TT_RMUTEX_T *rmutex, uint32_t msec)
+{
+	TT_THREAD_T *thread;
+	if (tt_is_in_irq ())
+		thread = (TT_THREAD_T *) -1;
+	else
+		thread = tt_thread_self ();
+	
+	if (rmutex->thread != thread)
+	{
+		int rt = tt_mutex_lock_timeout (&rmutex->mutex, msec);
+		if (rt != 0)
+			return rt;
+
+		rmutex->thread = thread;
+	}
+	rmutex->lock_count++;
+	return 0;	
+}
 
 /* Available in: irq, thread. */
 int tt_rmutex_try_lock (TT_RMUTEX_T *rmutex)
 {
 	TT_THREAD_T *thread;
-	if (sysIsInIRQ ())
+	if (tt_is_in_irq ())
 		thread = (TT_THREAD_T *) -1;
 	else
 		thread = tt_thread_self ();
@@ -61,7 +81,7 @@ int tt_rmutex_can_lock (TT_RMUTEX_T *rmutex)
 /* Available in: irq, thread. */
 void tt_rmutex_unlock (TT_RMUTEX_T *rmutex)
 {
-	ASSERT (rmutex->lock_count > 0);
+	TT_ASSERT (rmutex->lock_count > 0);
 	if (--rmutex->lock_count == 0)
 	{
 		rmutex->thread = NULL;

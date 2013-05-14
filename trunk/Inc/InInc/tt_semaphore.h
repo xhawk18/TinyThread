@@ -18,6 +18,7 @@ typedef struct
 
 void tt_sem_init (TT_SEM_T *sem, unsigned int count);
 void tt_sem_down (TT_SEM_T *sem);
+int tt_sem_down_timeout(TT_SEM_T *sem, uint32_t msec);
 int tt_sem_try_down (TT_SEM_T *sem);
 int tt_sem_can_down (TT_SEM_T *sem);
 void tt_sem_up (TT_SEM_T *sem);

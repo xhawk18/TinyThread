@@ -12,13 +12,14 @@ typedef struct
 {
 	/* locked_thread points to list of locked thread */
 	TT_THREAD_T	*locked_thread;
-	/* "owner" points to the thread that locked this semaphore */
+	/* "owner" points to the thread that locked this mutex */
 	TT_THREAD_T	*owner_thread;
 } TT_MUTEX_T;	/* Lock */
 
 
 void tt_mutex_init (TT_MUTEX_T *mutex);
 void tt_mutex_lock (TT_MUTEX_T *mutex);
+int tt_mutex_lock_timeout (TT_MUTEX_T *mutex, uint32_t msec);
 int tt_mutex_try_lock (TT_MUTEX_T *mutex);
 int tt_mutex_can_lock (TT_MUTEX_T *mutex);
 void tt_mutex_unlock (TT_MUTEX_T *mutex);

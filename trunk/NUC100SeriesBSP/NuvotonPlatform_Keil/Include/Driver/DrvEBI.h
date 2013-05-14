@@ -12,8 +12,8 @@
 /*  Define Version number								                                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 #define DRVEBI_MAJOR_NUM	    1
-#define DRVEBI_MINOR_NUM        02
-#define DRVEBI_BUILD_NUM	    002
+#define DRVEBI_MINOR_NUM        03
+#define DRVEBI_BUILD_NUM	    001
 
 /*---------------------------------------------------------------------------------------------------------*/
 /*  Version define with SysInfra				                                                           */
@@ -32,9 +32,15 @@
 
 typedef enum
 {
-	E_DRVEBI_BUS_8BIT	= 0x0,
-	E_DRVEBI_BUS_16BIT	= 0x1,	
-} E_DRVEBI_BUS_WIDTH;
+	E_DRVEBI_DATA_8BIT	= 0x0,
+	E_DRVEBI_DATA_16BIT	= 0x1,	
+} E_DRVEBI_DATA_WIDTH;
+
+typedef enum
+{
+	E_DRVEBI_ADDR_8BIT	= 0x0,
+	E_DRVEBI_ADDR_16BIT	= 0x1,	
+} E_DRVEBI_ADDR_WIDTH;
 
 typedef enum
 {
@@ -49,7 +55,8 @@ typedef enum
 
 typedef struct 
 {
-    E_DRVEBI_BUS_WIDTH	eBusWidth;
+    E_DRVEBI_DATA_WIDTH	eDataWidth;
+    E_DRVEBI_ADDR_WIDTH eAddrWidth;
     uint32_t			u32BaseAddress;
     uint32_t			u32Size;
 } DRVEBI_CONFIG_T;
@@ -59,7 +66,6 @@ typedef struct
     E_DRVEBI_MCLKDIV	eMCLKDIV;
     uint8_t				u8ExttALE;
     uint8_t				u8ExtIR2R;
-    uint8_t				u8ExtIR2W;
     uint8_t				u8ExtIW2X;
     uint8_t				u8ExttAHD;
     uint8_t				u8ExttACC;

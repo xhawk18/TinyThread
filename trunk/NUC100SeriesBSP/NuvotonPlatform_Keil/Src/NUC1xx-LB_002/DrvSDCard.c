@@ -33,6 +33,8 @@
 #define     CMD   0
 #define     RD    1
 #define     WR    2
+#define     RDB   3
+#define     WDB   4
 #define     R1    0
 #define     R1b   1
 #define     R2    2
@@ -87,7 +89,7 @@ COMMAND __I command_list[] = {
     {12,NO ,0xFF,CMD,R1b,NO },    // CMD12; STOP_TRANSMISSION: end read;
     {13,NO ,0xFF,CMD,R2 ,NO },    // CMD13; SEND_STATUS: read card status;
     {16,YES,0xFF,CMD,R1 ,NO },    // CMD16; SET_BLOCKLEN: set block size;
-    {17,YES,0xFF,RD ,R1 ,NO },    // CMD17; READ_SINGLE_BLOCK: read 1 block;
+    {17,YES,0xFF,RDB ,R1 ,NO },    // CMD17; READ_SINGLE_BLOCK: read 1 block;
     {18,YES,0xFF,RD ,R1 ,YES},    // CMD18; READ_MULTIPLE_BLOCK: read > 1;
 	{23,NO ,0xFF,CMD,R1 ,NO },    // CMD23; SET_BLOCK_COUNT
     {24,YES,0xFF,WR ,R1 ,NO },    // CMD24; WRITE_BLOCK: write 1 block;
@@ -185,27 +187,7 @@ static uint32_t SingleWrite(uint32_t u32Data)
 	DrvSPI_DumpRxRegister(eDRVSPI_PORT1,&SPIdata,1);
 	return SPIdata;
 }
-/*---------------------------------------------------------------------------------------------------------*/
-/* Function: 	 pfnSDCARD_Delay	                                                                       */
-/*                                                                                                         */
-/* Parameters:                                                                                             */
-/*               UINT32 nCount                                                                             */
-/*                                                                                                         */
-/* Returns:                                                                                                */
-/*               None   	                                                                               */
-/*               			                                                                               */
-/*                                                                                                         */
-/* Side effects:                                                                                           */
-/* Description:                                                                                            */
-/*               This function is used to make delay times                                                 */
-/*---------------------------------------------------------------------------------------------------------*/
-static void pfnSDCARD_Delay(uint32_t nCount)
-{
-	uint32_t i;
-	for(i=nCount;i>0;i--)
-		__NOP();
-	
-}
+
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function: 	 MMC_Command_Exec		                                                                   */
 /*                                                                                                         */
@@ -307,7 +289,6 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
     	do{
 			card_response.b[0] = SingleWrite(0xFF);
       		if(!++loopguard) break;
-			//pfnSDCARD_Delay(20);
     	}while((card_response.b[0] & BUSY_BIT));
 		DBG_PRINTF("R1:0x%x, counter:%d\n",card_response.b[0],loopguard);
 		if(!loopguard){BACK_FROM_ERROR;}
@@ -319,9 +300,8 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
       	do {
 			card_response.b[0] =  SingleWrite(0xFF);
 			if(!++loopguard) break;
-			//pfnSDCARD_Delay(20);
       	}while((card_response.b[0] & BUSY_BIT));
-		while(SingleWrite(0xFF) == 0x00);
+		while((SingleWrite(0xFF)&0xFF) == 0x00);
 	}
 	else if(current_command.response == R2) 
 	{
@@ -329,7 +309,6 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
       	do{
 		    card_response.b[0] = SingleWrite(0xFF);
         	if(!++loopguard) break;
-			//pfnSDCARD_Delay(20);
       	}while((card_response.b[0] & BUSY_BIT));
 	    card_response.b[1] = SingleWrite(0xFF);
 		DBG_PRINTF("R2:0x%x, counter:%d\n",card_response.i,loopguard);
@@ -341,7 +320,6 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
       	do {
         	card_response.b[0] = SingleWrite(0xFF);
 		    if(!++loopguard) break;
-			//pfnSDCARD_Delay(20);
       	} while((card_response.b[0] & BUSY_BIT));
   		DBG_PRINTF("R3:0x%x, counter:%d\n",card_response.b[0],loopguard);
   	  	if(!loopguard) { BACK_FROM_ERROR; }
@@ -358,7 +336,6 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
       	do {
         	card_response.b[0] = SingleWrite(0xFF);
 		    if(!++loopguard) break;
-			//pfnSDCARD_Delay(20);
       	} while((card_response.b[0] & BUSY_BIT));
   		DBG_PRINTF("R7:0x%x, counter:%d\n",card_response.b[0],loopguard);
   	  	if(!loopguard) { BACK_FROM_ERROR; }
@@ -376,10 +353,69 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
     {                                   // operations;  The command entry
                                        // determines what type, if any, data
                                        // operations need to occur;
+		case RDB:                         // Read data from the MMC;
+  			loopguard = 0;
+
+	     	while((SingleWrite(0xFF)&0xFF)!=START_SBR) 
+			{
+    	  		if(!++loopguard) {BACK_FROM_ERROR;}
+				DrvSYS_Delay(1);
+	      	}		
+          	counter = 0;                  	// Reset byte counter;
+                                       		// Read <current_blklen> bytes;
+
+			SPI1->TX[0] = 0xFFFFFFFF;
+			if(pchar)
+			{
+				/*Set pchar+counter is a multiple of 4*/
+				while(((uint32_t)pchar+counter)&0x03)
+				{
+					SPI1->CNTRL.GO_BUSY = 1;
+					while(SPI1->CNTRL.GO_BUSY);
+					*(pchar+counter++)=SPI1->RX[0];
+				}
+				/*Read data by word*/
+				SPI1->CNTRL.TX_BIT_LEN=0; 	
+				SPI1->CNTRL.REORDER=2;
+				SPI1->CNTRL.TX_NUM=1;				
+				for (; counter<current_blklen-7; )
+				{
+
+					SPI1->CNTRL.GO_BUSY = 1;
+					while(SPI1->CNTRL.GO_BUSY);
+					*((uint32_t*)(pchar+counter))=SPI1->RX[0];
+					counter+=4;
+					*((uint32_t*)(pchar+counter))=SPI1->RX[1];
+					counter+=4;				
+				}
+				SPI1->CNTRL.TX_NUM=0;
+				SPI1->CNTRL.REORDER=0;
+				SPI1->CNTRL.TX_BIT_LEN=8;
+				/*Read data by byte*/
+				for (; counter<current_blklen; counter++)
+				{
+					SPI1->CNTRL.GO_BUSY = 1;
+					while(SPI1->CNTRL.GO_BUSY);
+					*(pchar+counter)=SPI1->RX[0];				
+				}
+
+			}else
+			{
+				for (; counter<current_blklen; counter++)
+				{ 
+					SPI1->CNTRL.GO_BUSY = 1;
+					while(SPI1->CNTRL.GO_BUSY);									
+				}
+			}
+           	dummy_CRC.b[1] = SingleWrite(0xFF);	// After all data is read, read the two
+           	dummy_CRC.b[0] = SingleWrite(0xFF);	// CRC bytes;  These bytes are not used
+                               					// in this mode, but the placeholders 
+                   								// must be read anyway;			      
+          	break;
 		case RD:                         // Read data from the MMC;
   			loopguard = 0;
 
-	     	while(SingleWrite(0xFF)!=START_SBR) 
+	     	while((SingleWrite(0xFF)&0xFF)!=START_SBR) 
 			{
     	  		if(!++loopguard) {BACK_FROM_ERROR;}
 	      	}		
@@ -415,13 +451,10 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
           
 			for (counter=0; counter<current_blklen; counter++)
 			{
-				dummy_CRC.i = GenerateCRC(*(pchar+counter), 0x1021, dummy_CRC.i);
-
 				SPI1->TX[0] = *(pchar+counter);
 				SPI1->CNTRL.GO_BUSY = 1;
+				dummy_CRC.i = GenerateCRC(*(pchar+counter), 0x1021, dummy_CRC.i);				
 				while(SPI1->CNTRL.GO_BUSY);
-
-				//SingleWrite(*(pchar+counter));
 			}
 			SingleWrite(dummy_CRC.b[1]);
 			SingleWrite(dummy_CRC.b[0]);
@@ -438,7 +471,7 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
 	        if(!loopguard) { BACK_FROM_ERROR; }
 
 
-	        while(SingleWrite(0xFF)!=0xFF);//Wait for Busy
+	        while((SingleWrite(0xFF)&0xFF)!=0xFF);//Wait for Busy
 			SingleWrite(0xFF);	        
 	        break;
 		default: break;
@@ -447,6 +480,7 @@ uint32_t MMC_Command_Exec (uint8_t nCmd, uint32_t nArg,uint8_t *pchar, uint32_t 
     if((current_command.command_byte == 9)||(current_command.command_byte == 10)) {
     	current_blklen = old_blklen;    
 	}
+	DBG_PRINTF("True\n");
     return TRUE;
 }
 /*---------------------------------------------------------------------------------------------------------*/
@@ -477,20 +511,20 @@ void MMC_FLASH_Init(void)
 
 
 	DrvSPI_ClrSS(eDRVSPI_PORT1, eDRVSPI_SS0);	// CS = 1
-	pfnSDCARD_Delay(0x20000);
-
-		//--------------------------------------------------------
-		//	Send 74 SD clcok in SD mode for Toshiba SD Card
-		//--------------------------------------------------------	
+	DrvSYS_Delay(1000);
+	//--------------------------------------------------------
+	//	Send 74 SD clcok in SD mode for Toshiba SD Card
+	//--------------------------------------------------------	
   	for(counter = 0; counter < 10; counter++) {
     	SingleWrite(0xFF);
   	}
-  	DrvSPI_SetSS(eDRVSPI_PORT1, eDRVSPI_SS0);  // CS = 0
-	pfnSDCARD_Delay(0x20000);			
+	DrvSYS_Delay(1000);
+
+  	DrvSPI_SetSS(eDRVSPI_PORT1, eDRVSPI_SS0);  // CS = 0		
 	while(MMC_Command_Exec(GO_IDLE_STATE,EMPTY,EMPTY,&response)==FALSE);
   	if(response!=0x01)
 		return;
-	//pfnSDCARD_Delay(0x20000);
+
 	if(MMC_Command_Exec(SEND_IF_COND,0x15A,pchar,&response) && response==1)
 	{/* SDC ver 2.00 */
 		if (pchar[2] == 0x01 && pchar[3] == 0x5A) 
@@ -500,12 +534,13 @@ void MMC_FLASH_Init(void)
 			{
 				MMC_Command_Exec(SD_SEND_OP_COND,0x40000000,EMPTY,&response);//Enable HCS(OCR[30])
 				if(!++loopguard) break;
-				pfnSDCARD_Delay(0x200);
+				DrvSYS_Delay(50);
 			}while(response!=0);
 			if(!loopguard) return;
 
 			MMC_Command_Exec(READ_OCR,EMPTY,pchar,&response);
 			SDtype=(pchar[0]&0x40)?SDv2|SDBlock:SDv2;
+			DBG_PRINTF("SDv2\n");
 		}
 	}else
 	{/* SDv1 or MMCv3 */
@@ -517,10 +552,11 @@ void MMC_FLASH_Init(void)
 			{
 				MMC_Command_Exec(SD_SEND_OP_COND,0x00,EMPTY,&response);
 				if(!++loopguard) break;
-				pfnSDCARD_Delay(0x200);
+				DrvSYS_Delay(50);
 			}while(response!=0);
 			if(!loopguard) return;
 			SDtype=SDv1;	/* SDv1 */
+			DBG_PRINTF("SDv1\n");
 		} else 
 		{
 			loopguard=0;
@@ -528,10 +564,11 @@ void MMC_FLASH_Init(void)
 			{
 				MMC_Command_Exec(SEND_OP_COND,0x00,EMPTY,&response);
 				if(!++loopguard) break;
-				pfnSDCARD_Delay(0x200);
+				DrvSYS_Delay(50);
 			}while(response!=0);
 			if(!loopguard) return;
 			SDtype=MMCv3;	/* MMCv3 */
+			DBG_PRINTF("MMCv3\n");
 		}
 		MMC_Command_Exec(SET_BLOCKLEN,(uint32_t)PHYSICAL_BLOCK_SIZE,EMPTY,&response);
 	}
@@ -586,17 +623,20 @@ void MMC_FLASH_Init(void)
 /*---------------------------------------------------------------------------------------------------------*/
 uint32_t DrvSDCARD_Open(void)
 {
-
+	uint32_t Temp[2];
+	Temp[0]=0xFFFFFFFF;
+	Temp[1]=Temp[0];
     DrvSYS_SetIPClock(E_SYS_SPI1_CLK,1);
     DrvGPIO_InitFunction(E_FUNC_SPI1); // enable SPI funztion and pin 
     
-	DrvSPI_Open(eDRVSPI_PORT1,eDRVSPI_MASTER,eDRVSPI_TYPE1,8, FALSE);
+	DrvSPI_Open(eDRVSPI_PORT1,eDRVSPI_MASTER,eDRVSPI_TYPE1,8);
 	DrvSPI_DisableAutoSS(eDRVSPI_PORT1);
 	DrvSPI_SetSlaveSelectActiveLevel(eDRVSPI_PORT1, eDRVSPI_ACTIVE_LOW_FALLING);
 	DrvSPI_SetEndian(eDRVSPI_PORT1, eDRVSPI_MSB_FIRST);
+	DrvSPI_SetTxRegister(eDRVSPI_PORT1,Temp,2);
 	DrvSPI_SetClockFreq(eDRVSPI_PORT1,300000,300000);
-    pfnSDCARD_Delay(0x20000);
     MMC_FLASH_Init();
+    DrvSYS_Delay(1000);
 	DrvSPI_SetClockFreq(eDRVSPI_PORT1,12000000,12000000);
 
 	if (Is_Initialized)
@@ -708,9 +748,10 @@ void SpiRead(uint32_t addr, uint32_t size, uint8_t* buffer)
 	uint32_t response;
 	if(SDtype&SDBlock)
 	{
+
 		while(size >= PHYSICAL_BLOCK_SIZE)
 		{
-			MMC_Command_Exec(READ_SINGLE_BLOCK,addr,buffer,&response);
+			while(MMC_Command_Exec(READ_SINGLE_BLOCK,addr,buffer,&response)==FALSE);
 			addr   ++;
 			buffer += PHYSICAL_BLOCK_SIZE;
 			size  -= PHYSICAL_BLOCK_SIZE;
@@ -721,7 +762,7 @@ void SpiRead(uint32_t addr, uint32_t size, uint8_t* buffer)
 		addr*=PHYSICAL_BLOCK_SIZE;
 		while(size >= PHYSICAL_BLOCK_SIZE)
 		{
-			MMC_Command_Exec(READ_SINGLE_BLOCK,addr,buffer,&response);
+			while(MMC_Command_Exec(READ_SINGLE_BLOCK,addr,buffer,&response)==FALSE);
 			addr   += PHYSICAL_BLOCK_SIZE;
 			buffer += PHYSICAL_BLOCK_SIZE;
 			size  -= PHYSICAL_BLOCK_SIZE;
@@ -752,7 +793,7 @@ void SpiWrite(uint32_t addr, uint32_t size, uint8_t* buffer)
 	{
 		while(size >= PHYSICAL_BLOCK_SIZE)
 		{
-			MMC_Command_Exec(WRITE_BLOCK,addr,buffer,&response);
+			while(MMC_Command_Exec(WRITE_BLOCK,addr,buffer,&response)==FALSE);
 			addr   ++;
 			buffer += PHYSICAL_BLOCK_SIZE;
 			size  -= PHYSICAL_BLOCK_SIZE;
@@ -762,7 +803,7 @@ void SpiWrite(uint32_t addr, uint32_t size, uint8_t* buffer)
 		addr*=PHYSICAL_BLOCK_SIZE;
 		while(size >= PHYSICAL_BLOCK_SIZE)
 		{
-			MMC_Command_Exec(WRITE_BLOCK,addr,buffer,&response);
+			while(MMC_Command_Exec(WRITE_BLOCK,addr,buffer,&response)==FALSE);
 			addr   += (PHYSICAL_BLOCK_SIZE);
 			buffer += PHYSICAL_BLOCK_SIZE;
 			size  -= PHYSICAL_BLOCK_SIZE;

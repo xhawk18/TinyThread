@@ -1,0 +1,1 @@
+NuvotonPlatform_gcc shares other file with NuvotonPlatform_Keil.

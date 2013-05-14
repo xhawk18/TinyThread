@@ -191,6 +191,11 @@ int32_t DrvPDMA_SetCHForAPBDevice(
     E_DRVPDMA_APB_RW 		eRWAPB    
 );
 
+int32_t	DrvPDMA_SetSourceAddress(E_DRVPDMA_CHANNEL_INDEX eChannel,uint32_t u32SourceAddr);
+uint32_t DrvPDMA_GetSourceAddress(E_DRVPDMA_CHANNEL_INDEX eChannel);
+int32_t	DrvPDMA_SetDestAddress(E_DRVPDMA_CHANNEL_INDEX eChannel,uint32_t u32DestAddr);
+uint32_t DrvPDMA_GetDestAddress(E_DRVPDMA_CHANNEL_INDEX eChannel);
+
 int32_t DrvPDMA_GetVersion(void);
 
 

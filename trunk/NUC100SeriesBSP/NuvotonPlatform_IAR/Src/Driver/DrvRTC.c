@@ -4,19 +4,17 @@
 /*                                                                                                         */
 /*---------------------------------------------------------------------------------------------------------*/
 
-
 /*---------------------------------------------------------------------------------------------------------*/
 /* Includes of system headers                                                                              */
 /*---------------------------------------------------------------------------------------------------------*/
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Includes of local headers                                                                               */
 /*---------------------------------------------------------------------------------------------------------*/
 #include <stdio.h>
-#include "NUC1xx.h"
 #include "DrvRTC.h"
 #include "DrvGPIO.h"
+
 /*---------------------------------------------------------------------------------------------------------*/
 /* Macro, type and constant definitions                                                                    */
 /*---------------------------------------------------------------------------------------------------------*/
@@ -29,16 +27,15 @@
 #define RTCDEBUG(...)
 #endif
 
-
 /*---------------------------------------------------------------------------------------------------------*/
 /* Global file scope (static) variables                                                                    */
 /*---------------------------------------------------------------------------------------------------------*/
-static PFN_DRVRTC_CALLBACK  *g_pfnRTCCallBack_Tick    = NULL, *g_pfnRTCCallBack_Alarm   = NULL;
+static PFN_DRVRTC_CALLBACK  *g_pfnRTCCallBack_Tick = NULL, *g_pfnRTCCallBack_Alarm = NULL;
                    
-static uint32_t volatile g_u32RTC_Count  = 0;
+static uint32_t volatile g_u32RTC_Count = 0;
 static char g_chHourMode = 0;
-static int32_t volatile g_bIsEnableTickInt  = NULL;
-static int8_t volatile g_bIsEnableAlarmInt  = NULL;
+static int32_t volatile g_bIsEnableTickInt = NULL;
+static int8_t volatile g_bIsEnableAlarmInt = NULL;
 
 static uint32_t volatile g_u32Reg, g_u32Reg1,g_u32hiYear,g_u32loYear,g_u32hiMonth,g_u32loMonth,g_u32hiDay,g_u32loDay;
 static uint32_t volatile g_u32hiHour,g_u32loHour,g_u32hiMin,g_u32loMin,g_u32hiSec,g_u32loSec;
@@ -53,36 +50,31 @@ static uint32_t volatile g_u32hiHour,g_u32loHour,g_u32hiMin,g_u32loMin,g_u32hiSe
 /* Description:                                                                                            */
 /*               Install ISR to handle interrupt event                                                     */
 /*---------------------------------------------------------------------------------------------------------*/
-
 void RTC_IRQHandler(void)
-{ 
-   
-	if (RTC->RIIR.TI ==0x1)      		   /* tick interrupt occurred */
+{   
+	if (RTC->RIIR.TIF == 0x1)      		        /* tick interrupt occurred */
 	{
- 		  RTC->RIIR.TI = 1;
-		  
-		  g_u32RTC_Count++;                                            /* maintain RTC tick count */
-
-          if (g_pfnRTCCallBack_Tick != NULL)                           /* execute tick callback function */
-          {
-              g_pfnRTCCallBack_Tick();
-          }
-
+        outpw(&RTC->RIIR, 0x2);  
+       
+        g_u32RTC_Count++;                       /* maintain RTC tick count */
+        
+        if (g_pfnRTCCallBack_Tick != NULL)      /* execute tick callback function */
+        {
+            g_pfnRTCCallBack_Tick();
+        }
     }
 
- 	if (RTC->RIIR.AI ==0x1)                /* alarm interrupt occurred */
+    if (RTC->RIIR.AIF == 0x1)                   /* alarm interrupt occurred */
     {
-          
-		  RTC->RIIR.AI = 1;
-		  
-		  if (g_pfnRTCCallBack_Alarm != NULL) 	                       /* execute alarm callback function */
-          {
-              g_pfnRTCCallBack_Alarm();
-          }
+        outpw(&RTC->RIIR, 0x1);  
+        
+        if (g_pfnRTCCallBack_Alarm != NULL)     /* execute alarm callback function */
+        {
+            g_pfnRTCCallBack_Alarm();
+        }
     }
 }
 
- 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_SetFrequencyCompensation                                                           */
 /*                                                                                                         */
@@ -127,49 +119,46 @@ int32_t DrvRTC_SetFrequencyCompensation(int32_t i32FrequencyX100)
 /* DESCRIPTION                                                                                             */
 /*               Access Password to AER to make access other register enable                               */
 /*---------------------------------------------------------------------------------------------------------*/
-int32_t DrvRTC_WriteEnable (void)
+int32_t DrvRTC_WriteEnable(void)
 {
     int32_t i32i = 0;
 
 	int i32retry = 100;
     
-	/*-------------------------------------------------------------------------------------------------*/
-    /* After 200ms, Access enable wiil auto-clear. As soon as possible to do your setting              */
-    /*-------------------------------------------------------------------------------------------------*/
+	/*----------------------------------------------------------------------------------------------------------*/
+    /* After 512 RTC clocks(about 15ms). Access enable wiil auto-clear. As soon as possible to do your setting. */
+    /*----------------------------------------------------------------------------------------------------------*/
 	RETRY:
 
 	i32i = 0;
 	
 	RTC->AER.AER = 0xA965;
 	
-    for (i32i = 0 ; i32i < DRVRTC_WAIT_COUNT ; i32i++)
+    for (i32i=0 ; i32i<DRVRTC_WAIT_COUNT ; i32i++)
 	{
         /*-------------------------------------------------------------------------------------------------*/
         /* check RTC_AER[16] to find out RTC write enable                                                  */
         /*-------------------------------------------------------------------------------------------------*/
  		RTC->AER.AER = 0xA965;
 		
-		if (RTC->AER.ENF ==1)	
+		if (RTC->AER.ENF == 1)	
 		    break;
 	}
 
-	
 	if (i32i == DRVRTC_WAIT_COUNT)
     {
         RTCDEBUG ("\nRTC: RTC_WriteEnable, set write enable FAILED!\n");
 
 		i32retry--;
 
-        if(!i32retry)
+        if (!i32retry)
 	   		return E_DRVRTC_ERR_FAILED;
 						
 		goto RETRY;
     }
 
-    
 	return E_SUCCESS;
 }
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_Init                                                                               */
@@ -184,8 +173,7 @@ int32_t DrvRTC_WriteEnable (void)
 /*               Initial RTC. It consists of clear callback function pointer, enable 32K clock and         */
 /*               RTC clock and write initial key to let RTC start count                                    */
 /*---------------------------------------------------------------------------------------------------------*/
-
-int32_t DrvRTC_Init (void)
+int32_t DrvRTC_Init(void)
 {
     int32_t i32i =0;
 	
@@ -199,8 +187,13 @@ int32_t DrvRTC_Init (void)
 
     g_u32RTC_Count = 0;
 	
-	UNLOCKREG();
-	/* Enable 32K Clock */
+	if ((SYS->REGWRPROT & 0x01) == 0)
+    {
+        /* The protected Registers are locked */
+        return E_DRVRTC_ERR_EIO;
+    }
+
+    /* Enable 32K Clock */
 	SYSCLK->PWRCON.XTL32K_EN =1;
 	  
 	/* Waiting for 32K stable */
@@ -209,18 +202,15 @@ int32_t DrvRTC_Init (void)
 	/* Enable RTC Clock */
 	SYSCLK->APBCLK.RTC_EN =1;
 	
-	LOCKREG();
-
     /*-----------------------------------------------------------------------------------------------------*/
-    /* When RTC is power on, write 0xa5eb1357 to RTC_INIR to reset all logic.                              */
+    /* When RTC is power on, write 0xa5eb1357 to INIR to make RTC leaving reset state.                     */
     /*-----------------------------------------------------------------------------------------------------*/
-	
 	RTC->INIR = DRVRTC_INIT_KEY;
 
-    for (i32i = 0 ; i32i < DRVRTC_WAIT_COUNT ; i32i++)
+    for (i32i=0 ; i32i<DRVRTC_WAIT_COUNT; i32i++)
     {
 
-		if(RTC->INIR == 0x1)  /* Check RTC_INIR[0] to find out RTC reset signal */
+		if (RTC->INIR == 0x1)  /* Check if RTC is at normal active state */
         { 
             break;
         }
@@ -235,7 +225,6 @@ int32_t DrvRTC_Init (void)
     return E_SUCCESS;
 }
 
-
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_Open                                                                               */
 /*                                                                                                         */
@@ -248,8 +237,7 @@ int32_t DrvRTC_Init (void)
 /* DESCRIPTION                                                                                             */
 /*               Set Current time (Year/Month/Day, Hour/Minute/Sec and day of week)                        */
 /*---------------------------------------------------------------------------------------------------------*/
-
-int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
+int32_t DrvRTC_Open(S_DRVRTC_TIME_DATA_T *sPt)
 {
     uint32_t u32Reg;
 	
@@ -300,7 +288,8 @@ int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
 
     /*-----------------------------------------------------------------------------------------------------*/
     /* Important, call RTC_WriteEnable() before write data into any register.                              */
-    /* User should be write data as soon as possible.Access enable wiil clear after 200ms                  */
+    /* User should be write data as soon as possible.                                                      */
+    /* Access enable wiil clear after 512 RTC clocks(about 15ms).                                          */
 	/*-----------------------------------------------------------------------------------------------------*/
     g_u32Reg = DrvRTC_WriteEnable();
     if (g_u32Reg != 0)
@@ -314,7 +303,7 @@ int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
     if (sPt->u8cClockDisplay == DRVRTC_CLOCK_12)
     {
         DrvRTC_WriteEnable();
- 		RTC->TSSR.HR24 = DRVRTC_CLOCK_12;
+ 		RTC->TSSR.HR24_HR12 = DRVRTC_CLOCK_12;
 
         /*-------------------------------------------------------------------------------------------------*/
         /* important, range of 12-hour PM mode is 21 upto 32                                               */
@@ -322,11 +311,11 @@ int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
         if (sPt->u8cAmPm == DRVRTC_PM)
             sPt->u32cHour += 20;
     }
-    else                                                                               /* RTC_CLOCK_24 */
+    else    
     {
-
+        /* RTC_CLOCK_24 */
         DrvRTC_WriteEnable();
- 		RTC->TSSR.HR24 = DRVRTC_CLOCK_24;
+ 		RTC->TSSR.HR24_HR12 = DRVRTC_CLOCK_24;
         RTCDEBUG ("RTC: 24-hour\n");
     }
 
@@ -342,7 +331,7 @@ int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
     g_u32Reg = u32Reg;
 	
 	DrvRTC_WriteEnable();
- 	RTC->TSSR.HR24 = DRVRTC_CLOCK_24;
+ 	RTC->TSSR.HR24_HR12 = DRVRTC_CLOCK_24;
     outpw(&RTC->CLR, (uint32_t)g_u32Reg);
 
 	/*-----------------------------------------------------------------------------------------------------*/
@@ -369,7 +358,6 @@ int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
     return E_SUCCESS;
 }
 
- 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_Read                                                                               */
 /*                                                                                                         */
@@ -383,17 +371,16 @@ int32_t DrvRTC_Open (S_DRVRTC_TIME_DATA_T *sPt)
 /* DESCRIPTION                                                                                             */
 /*               Read current date/time or alarm date/time from RTC setting                                */
 //*--------------------------------------------------------------------------------------------------------*/
-
-int32_t DrvRTC_Read (E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
+int32_t DrvRTC_Read(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 {
     uint32_t u32Tmp;
     
-    sPt->u8cClockDisplay = RTC->TSSR.HR24;                                 /* 12/24-hour */
-    sPt->u32cDayOfWeek   = RTC->DWR.DWR;                                   /* Day of week */
+    sPt->u8cClockDisplay = RTC->TSSR.HR24_HR12;     /* 12/24-hour */
+    sPt->u32cDayOfWeek   = RTC->DWR.DWR;            /* Day of week */
 
     switch (eTime)
     {
-        case DRVRTC_CURRENT_TIME:										   /* Get Current Time */
+        case DRVRTC_CURRENT_TIME:		    /* Get Current Time */
         {
 			g_u32hiYear  = RTC->CLR.YEAR10 ;
     		g_u32loYear  = RTC->CLR.YEAR1;
@@ -410,7 +397,7 @@ int32_t DrvRTC_Read (E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
     		g_u32loSec  =  RTC->TLR.SEC1;
             break;
 		}
-        case DRVRTC_ALARM_TIME:									 	/* Get Alarm Time */
+        case DRVRTC_ALARM_TIME:		        /* Get Alarm Time */
         {
 			g_u32hiYear  = RTC->CAR.YEAR10 ;
     		g_u32loYear  = RTC->CAR.YEAR1;
@@ -433,21 +420,21 @@ int32_t DrvRTC_Read (E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
         }
     }
 
-    u32Tmp = (g_u32hiYear * 10);									/* Compute to 20XX year */
+    u32Tmp = (g_u32hiYear * 10);	                    /* Compute to 20XX year */
     u32Tmp+= g_u32loYear;
     sPt->u32Year   =   u32Tmp  + DRVRTC_YEAR2000;
     
-    u32Tmp = (g_u32hiMonth * 10);									/* Compute 0~12 month */
+    u32Tmp = (g_u32hiMonth * 10);			            /* Compute 0~12 month */
     sPt->u32cMonth = u32Tmp + g_u32loMonth;
     
-    u32Tmp = (g_u32hiDay * 10);										/* Compute 0~31 day */
+    u32Tmp = (g_u32hiDay * 10);					        /* Compute 0~31 day */
     sPt->u32cDay   =  u32Tmp  + g_u32loDay;
 
-    if (sPt->u8cClockDisplay == DRVRTC_CLOCK_12)					/* Compute12/24 hout */
+    if (sPt->u8cClockDisplay == DRVRTC_CLOCK_12)	    /* Compute12/24 hout */
     {
         u32Tmp = (g_u32hiHour * 10);
         u32Tmp+= g_u32loHour;
-        sPt->u32cHour = u32Tmp;                                		/* AM: 1~12. PM: 21~32. */
+        sPt->u32cHour = u32Tmp;                         /* AM: 1~12. PM: 21~32. */
 
         if (sPt->u32cHour >= 21)
         {
@@ -469,7 +456,7 @@ int32_t DrvRTC_Read (E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 
     }
     else
-    {   															/* RTC_CLOCK_24 */
+    {   									            /* RTC_CLOCK_24 */
         u32Tmp = (g_u32hiHour * 10);
         u32Tmp+= g_u32loHour;
         sPt->u32cHour   = u32Tmp;
@@ -487,8 +474,6 @@ int32_t DrvRTC_Read (E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 
 }
 
-
-
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_Write                                                                              */
 /*                                                                                                         */
@@ -505,6 +490,7 @@ int32_t DrvRTC_Read (E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 {
     uint32_t u32Reg;
+
     /*-----------------------------------------------------------------------------------------------------*/
     /* Check RTC time data value is reasonable or not.                                                     */
     /*-----------------------------------------------------------------------------------------------------*/
@@ -516,19 +502,19 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
         return E_DRVRTC_ERR_FAILED;
     }
 
-    if ( (sPt->u32Year - DRVRTC_YEAR2000) > 99 )
+    if ((sPt->u32Year - DRVRTC_YEAR2000) > 99)
     {
         RTCDEBUG ("\nRTC: Year value is incorrect\n");
         return E_DRVRTC_ERR_FAILED;
     }
 
-    if ( (sPt->u32cMonth == 0) || (sPt->u32cMonth > 12) )
+    if ((sPt->u32cMonth == 0) || (sPt->u32cMonth > 12))
     {
         RTCDEBUG ("\nRTC: Month value is incorrect\n");
         return E_DRVRTC_ERR_FAILED;
     }
 
-    if ( (sPt->u32cDay == 0) || (sPt->u32cDay > 31) )
+    if ((sPt->u32cDay == 0) || (sPt->u32cDay > 31))
     {
         RTCDEBUG ("\nRTC: Day value is incorrect\n");
         return E_DRVRTC_ERR_FAILED;
@@ -536,7 +522,7 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 
     if (sPt->u8cClockDisplay == DRVRTC_CLOCK_12)
     {
-        if ( (sPt->u32cHour == 0) || (sPt->u32cHour > 12) )
+        if ((sPt->u32cHour == 0) || (sPt->u32cHour > 12))
         {
             RTCDEBUG ("\nRTC: Hour value is incorrect\n");
             return E_DRVRTC_ERR_FAILED;
@@ -574,7 +560,6 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
         return E_DRVRTC_ERR_FAILED;
     }
 
-
     /*-----------------------------------------------------------------------------------------------------*/
     /* Important, call RTC_Open() before write data into any register.                                     */
     /*-----------------------------------------------------------------------------------------------------*/
@@ -591,11 +576,10 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
             /*---------------------------------------------------------------------------------------------*/
             /* Second, set RTC time data.                                                                  */
             /*---------------------------------------------------------------------------------------------*/
-
             if (sPt->u8cClockDisplay == DRVRTC_CLOCK_12)
             {
                 g_chHourMode = DRVRTC_CLOCK_12;
-				RTC->TSSR.HR24 = DRVRTC_CLOCK_12;
+				RTC->TSSR.HR24_HR12 = DRVRTC_CLOCK_12;
                 RTCDEBUG ("RTC: 12-hour\n");
                 /*-----------------------------------------------------------------------------------------*/
                 /* important, range of 12-hour PM mode is 21 upto 32                                       */
@@ -603,20 +587,19 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
                 if (sPt->u8cAmPm == DRVRTC_PM)
                     sPt->u32cHour += 20;
             }
-            else                                                                  /* RTC_CLOCK_24 */
+            else                                                                  
             {
+                /* RTC_CLOCK_24 */
                 g_chHourMode = DRVRTC_CLOCK_24;
-    			RTC->TSSR.HR24 = DRVRTC_CLOCK_24;
+    			RTC->TSSR.HR24_HR12 = DRVRTC_CLOCK_24;
                 RTCDEBUG ("RTC: 24-hour\n");
             }
 
   			RTC->DWR.DWR = sPt->u32cDayOfWeek;
-
 		    
 			/*---------------------------------------------------------------------------------------------*/
             /* Second, set RTC time data.                                                                  */
             /*---------------------------------------------------------------------------------------------*/
-
 			u32Reg     = ((sPt->u32Year - DRVRTC_YEAR2000) / 10) << 20;
 		    u32Reg    |= (((sPt->u32Year - DRVRTC_YEAR2000) % 10) << 16);
 		    u32Reg    |= ((sPt->u32cMonth  / 10) << 12);
@@ -642,7 +625,6 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 			RTCDEBUG ("RTC: REG_RTC_TLR[0x%08x]\n", inpw(&RTC->TLR));   
 			
             return E_SUCCESS;
-
 
          case DRVRTC_ALARM_TIME:
 
@@ -699,8 +681,8 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 	            return E_DRVRTC_ERR_ENOTTY;
 	        }
     }
-
 }
+
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_GetIntTick                                                                         */
 /*                                                                                                         */
@@ -714,7 +696,6 @@ int32_t DrvRTC_Write(E_DRVRTC_TIME_SELECT eTime, S_DRVRTC_TIME_DATA_T *sPt)
 /* DESCRIPTION                                                                                             */
 /*               The function is used to get current Software tick count after enable tick interrupt.      */
 //*--------------------------------------------------------------------------------------------------------*/
-
 int32_t DrvRTC_GetIntTick()
 {
    return g_u32RTC_Count;
@@ -732,12 +713,10 @@ int32_t DrvRTC_GetIntTick()
 /* DESCRIPTION                                                                                             */
 /*               The function is used to reset the tick count counting in interrupt                        */
 //*--------------------------------------------------------------------------------------------------------*/
-
 void DrvRTC_ResetIntTick()
 {
    g_u32RTC_Count = 0;
 }
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_IsLeapYear                                                                         */
@@ -751,12 +730,10 @@ void DrvRTC_ResetIntTick()
 /* DESCRIPTION                                                                                             */
 /*               According current time setting, return this is LEAP year or not.                          */
 //*--------------------------------------------------------------------------------------------------------*/
-
 int32_t DrcRTC_IsLeapYear()
 {
 	return (RTC->LIR.LIR == 0x1)?1:0;
 }
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function: DrvRTC_SetTickMode                                                                            */
@@ -779,12 +756,12 @@ int32_t DrvRTC_SetTickMode(uint8_t ucMode)
 {
     g_u32RTC_Count = 0;
 	
-    if (DrvRTC_WriteEnable() != 0)   				/* Write PASSWORD to access enable*/
+    if (DrvRTC_WriteEnable() != 0)              /* Write PASSWORD to access enable*/
     {
     	return E_DRVRTC_ERR_EIO ;
     }
     
-	if (ucMode > DRVRTC_TICK_1_128_SEC)             /* Tick mode 0 to 7 */
+	if (ucMode > DRVRTC_TICK_1_128_SEC)         /* Tick mode 0 to 7 */
     {
     	return E_DRVRTC_ERR_ENOTTY ;
     }
@@ -792,11 +769,7 @@ int32_t DrvRTC_SetTickMode(uint8_t ucMode)
   	RTC->TTR.TTR = ucMode;            
 
 	return E_SUCCESS;
-
 }
-
-
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_EnableInt                                                                          */
@@ -805,7 +778,7 @@ int32_t DrvRTC_SetTickMode(uint8_t ucMode)
 /*               str_IntSrc     Interrupt Source:  DRVRTC_TICK_INT / DRVRTC_ALARM_INT       			   */
 /*               pfncallback    Callback function pointer                                                  */
 /* Returns:                                                                                                */
-/*               E_SUCCESS      Operation Successful                                                       */
+/*               E_SUCCESS              Operation Successful                                               */
 /*               E_DRVRTC_ERR_ENOTTY    Wrong Parameter                                                    */
 /* Description:                                                                                            */
 /*               This function is used to enable RTC specified interrupt and install callback function     */
@@ -814,7 +787,6 @@ int32_t DrvRTC_EnableInt(E_DRVRTC_INT_SOURCE str_IntSrc, PFN_DRVRTC_CALLBACK pfn
 {
 	switch (str_IntSrc)
     {
-
     	case DRVRTC_TICK_INT:
         {
         	g_bIsEnableTickInt   	= TRUE;
@@ -834,12 +806,12 @@ int32_t DrvRTC_EnableInt(E_DRVRTC_INT_SOURCE str_IntSrc, PFN_DRVRTC_CALLBACK pfn
             return E_DRVRTC_ERR_ENOTTY;
         }
     }
+
+    NVIC_SetPriority(RTC_IRQn, (1<<__NVIC_PRIO_BITS) - 2);
 	NVIC_EnableIRQ(RTC_IRQn); 
 
 	return E_SUCCESS;
-
 }
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:     DrvRTC_DisableInt                                                                         */
@@ -855,25 +827,24 @@ int32_t DrvRTC_EnableInt(E_DRVRTC_INT_SOURCE str_IntSrc, PFN_DRVRTC_CALLBACK pfn
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvRTC_DisableInt(E_DRVRTC_INT_SOURCE i32IntSrc)
 {
-	
-	if((i32IntSrc & DRVRTC_TICK_INT) == DRVRTC_TICK_INT	)
+	if ((i32IntSrc & DRVRTC_TICK_INT) == DRVRTC_TICK_INT)
 	{
 		g_bIsEnableTickInt  = FALSE;	
 		RTC->RIER.TIER 		= 0; 
-		RTC->RIIR.TI 		= 1; 
+		RTC->RIIR.TIF 	    = 1; 
 	}
-	else if((i32IntSrc & DRVRTC_ALARM_INT) == DRVRTC_ALARM_INT )
+	else if ((i32IntSrc & DRVRTC_ALARM_INT) == DRVRTC_ALARM_INT)
 	{
         g_bIsEnableAlarmInt = FALSE;
     	RTC->RIER.AIER 		= 0; 
-		RTC->RIIR.AI 		= 1; 
+		RTC->RIIR.AIF 	    = 1; 
 	}
 	else
 	{
 		return E_DRVRTC_ERR_ENOTTY;
 	}
-	return E_SUCCESS;	
 
+	return E_SUCCESS;	
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -888,10 +859,8 @@ int32_t DrvRTC_DisableInt(E_DRVRTC_INT_SOURCE i32IntSrc)
 /* DESCRIPTION                                                                                             */
 /*               Disable NVIC channel of RTC and both tick and alarm interrupt..                           */
 /*---------------------------------------------------------------------------------------------------------*/
-
-int32_t DrvRTC_Close (void)
+int32_t DrvRTC_Close(void)
 {
-
     g_bIsEnableTickInt = FALSE;
     g_bIsEnableAlarmInt = FALSE;
     
@@ -901,7 +870,6 @@ int32_t DrvRTC_Close (void)
 	
     return E_SUCCESS;
 }
-
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function: DrvRTC_GetVersion                                                                             */
@@ -919,10 +887,4 @@ int32_t DrvRTC_GetVersion (void)
 {
 	return DRVRTC_VERSION_NUM;
 }
-
-
-
-
-
-
 

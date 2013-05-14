@@ -1,154 +1,117 @@
-#if 0	// Move all codes to tt_list.h
-#include <stdlib.h>
-#include <stdbool.h>
-#include "../Inc/InInc/tt_list.h"
+#include "../Inc/tt_thread.h"
 
-
-
-
-
-void listInit (LIST_T *pList)
+void listInit (LIST_T *list)
 {
-	pList->pPrev = pList;
-	pList->pNext = pList;
+	listSetPrev (list, list);
+	listSetNext (list, list);
 #ifdef DEBUG_DUMP_LIST
 	{
 		static int index = 0;
-		pList->index = index++;
+		list->index = index++;
 	}
 #endif
 }
 
-
-/* Connect two lists. */
-void listConnect (LIST_T *pList1, LIST_T *pList2)
+/* Connect or disconnect two lists. */
+void listToggleConnect (LIST_T *list1, LIST_T *list2)
 {
-	LIST_T *pPrev1 = pList1->pPrev;
-	LIST_T *pPrev2 = pList2->pPrev;
-	pPrev1->pNext = pList2;
-	pPrev2->pNext = pList1;
-	pList1->pPrev = pPrev2;
-	pList2->pPrev = pPrev1;
+	LIST_T *prev1 = listGetPrev (list1);
+	LIST_T *prev2 = listGetPrev (list2);
+	listSetNext (prev1, list2);
+	listSetNext (prev2, list1);
+	listSetPrev (list1, prev2);
+	listSetPrev (list2, prev1);
 }
 
-
-/* Disconnect tow lists. */
-void listDisconnect (LIST_T *pList1, LIST_T *pList2)
+/* Swap with previous node */
+void listSwapBefore (LIST_T *node)
 {
-	LIST_T *pPrev1 = pList1->pPrev;
-	LIST_T *pPrev2 = pList2->pPrev;
-	pPrev1->pNext = pList2;
-	pPrev2->pNext = pList1;
-	pList1->pPrev = pPrev2;
-	pList2->pPrev = pPrev1;
-}
-
-
-void listSwapBefore (LIST_T *pNode)
-{
-	if (pNode->pPrev != pNode->pNext)
+	LIST_T *prev = listGetPrev (node);
+	LIST_T *next = listGetNext (node);
+	if (prev != next)
 	{
-		LIST_T *pPrev = pNode->pPrev;
-		pNode->pPrev		= pPrev->pPrev;
-		pPrev->pPrev->pNext	= pNode;
-		pPrev->pNext		= pNode->pNext;
-		pNode->pNext->pPrev	= pPrev;
-		pNode->pNext = pPrev;
-		pPrev->pPrev = pNode;
+		LIST_T *prev_prev = listGetPrev (prev);
+		listSetPrev (node, prev_prev);
+		listSetNext (prev_prev, node);
+		listSetNext (prev, next);
+		listSetPrev (next, prev);
+		listSetNext (node, prev);
+		listSetPrev (prev, node);
 	}
 }
 
-void listAttach (LIST_T *pNode1, LIST_T *pNode2)
-{
-	listConnect (pNode1, pNode2);
-}
 
-void listDetach (LIST_T *pNode)
+void listMove (LIST_T *list, LIST_T *node)
 {
-	listDisconnect (pNode, pNode->pNext);
+	listDetach (node);
+	listAttach (list, node);
 }
 
 
-/* Move pNode to pList, after moving,
-   pNode->pNext == pList
-   pList->pPrev == pNode
- */
-void listMove (LIST_T *pList, LIST_T *pNode)
+void listForEach (LIST_T *list, bool (*func) (LIST_T *node, void *arg), void *arg)
 {
-	listDetach (pNode);
-	listAttach (pList, pNode);
-}
-
-
-void listForEach (LIST_T *pList, bool (*fnChecked)(LIST_T *pNode, void *pArg), void *pArg)
-{
-	LIST_T *pNode;
-	for (pNode = pList->pNext; pNode != pList; pNode = pNode->pNext)
+	LIST_T *node;
+	for (node = listGetNext (list); node != list; node = listGetNext (node))
 	{
-		if ((*fnChecked)(pNode, pArg) != false)
+		if ((*func) (node, arg) != false)
 			break;
 	}
 }
 
 
-/* Insert pNode into pList,
-   pList should has already been sorted by (*bin_comp)(...),
+/* Insert node into list,
+   list should has already been sorted by (*bin_comp)(...),
  */
-void listInsert (LIST_T *pList, LIST_T *pNode, bool (*bin_comp)(LIST_T *p1st, LIST_T *p2nd, void *pArg), void *pArg)
+void listInsert (LIST_T *list, LIST_T *node, bool (*bin_comp) (LIST_T *p1st, LIST_T *p2nd, void *arg), void *arg)
 {
-	LIST_T *pPrev;
-	for (pPrev = pList->pPrev; pPrev != pList; pPrev = pPrev->pPrev)
+	LIST_T *next;
+	for (next = listGetNext (list); next != list; next = listGetNext (next))
 	{
-		if ((bin_comp) (pNode, pPrev, pArg) != false)
+		if ((bin_comp) (node, next, arg) != false)
 			break;
 	}
-	listDetach (pNode);
-	listAttach (pNode, pPrev);
+	listDetach (node);
+	listAttach (node, next);
 }
-int listLength (LIST_T *pList)
+
+
+/* Get length of list */
+int listLength (LIST_T *list)
 {
-	LIST_T *pNode;
-	int i = 0;
-	for (pNode = pList->pNext; pNode != pList; pNode = pNode->pNext)
+	LIST_T	*node;
+	int		i = 0;
+	for (node = listGetNext (list); node != list; node = listGetNext (node))
 		i++;
 	return i;
 }
 
 
-LIST_T *listGetAt (LIST_T *pList, int nIndex)
+/* Get element at position index */
+LIST_T *listGetAt (LIST_T *list, int index)
 {
-	LIST_T *pNode;
+	LIST_T *node;
 
-	if (nIndex < 0)
+	if (index < 0)
 		return NULL;
 	
-	for (pNode = pList->pNext; pNode != pList; pNode = pNode->pNext)
+	for (node = listGetNext (list); node != list; node = listGetNext (node))
 	{
-		if (nIndex-- == 0)
-			return pNode;
+		if (index-- == 0)
+			return node;
 	}
 
 	return NULL;
 }
 
 
-bool listIsEmpty (LIST_T *pList)
-{
-	if (pList->pNext == pList)
-		return true;
-	else
-		return false;
-}
-
 #ifdef DEBUG_DUMP_LIST
-static void listDump (LIST_T *pList)
+void listDump (LIST_T *list)
 {
-	LIST_T *p;
-	sysSafePrintf ("List: %d [ ", pList->index);
-	for (p = pList->pNext; p != pList; p = p->pNext)
-		sysSafePrintf ("%d ", p->index);
+	LIST_T *node;
+	sysSafePrintf ("List: %d,%08x,%08x,%08x[ ", list->index, list, listGetPrev (list), listGetNext (list));
+	for (node = listGetNext (list); node != list; node = listGetNext (node))
+		sysSafePrintf ("%d,%08x,%08x,%08x, ", node->index, node, listGetPrev (node), listGetNext (node));
 	sysSafePrintf ("]\n");
 }
 #endif
 
-#endif

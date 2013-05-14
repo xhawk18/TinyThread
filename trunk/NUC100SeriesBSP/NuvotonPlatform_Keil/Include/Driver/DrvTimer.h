@@ -16,8 +16,8 @@
 /*  Define Version number								                                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 #define DRVTIMER_MAJOR_NUM      1
-#define DRVTIMER_MINOR_NUM      02
-#define DRVTIMER_BUILD_NUM      002
+#define DRVTIMER_MINOR_NUM      04
+#define DRVTIMER_BUILD_NUM      005
 #define DRVTIMER_VERSION_NUM    _SYSINFRA_VERSION(DRVTIMER_MAJOR_NUM, DRVTIMER_MINOR_NUM, DRVTIMER_BUILD_NUM)
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -28,6 +28,7 @@
 #define E_DRVTIMER_EIO              _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVTIMER, 3)  /* Timer IO error      */
 #define E_DRVTIMER_EVENT_FULL       _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVTIMER, 4)  /* Event Full error    */
 #define E_DRVWDT_CMD                _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVTIMER, 5)  /* Invalid CMD         */
+#define E_DRVWDT_OPEN               _SYSINFRA_ERRCODE(TRUE, MODULE_ID_DRVTIMER, 6)  /* WDT open fail       */
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Global interface variables declarations                                                                 */                                                                            
@@ -51,21 +52,46 @@ typedef struct timeEvent_t
 /* Define TIMER Channel                                                                                    */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum {
-    E_TMR0  =   0 ,
-    E_TMR1  =   1 ,
-	E_TMR2  =   2 ,
-	E_TMR3  =   3        
+    E_TMR0      = 0,
+    E_TMR1      = 1,
+	E_TMR2      = 2,
+	E_TMR3      = 3        
 } E_TIMER_CHANNEL;
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Define TIMER OPREATION MODE                                                                             */
 /*---------------------------------------------------------------------------------------------------------*/
 typedef enum{                   
-    E_ONESHOT_MODE        = 0,
+    E_ONESHOT_MODE 		= 0,
     E_PERIODIC_MODE   	= 1,
     E_TOGGLE_MODE     	= 2, 
 	E_CONTINUOUS_MODE 	= 3     
 } E_TIMER_OPMODE ;
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Define Timer Counter TX Phase                                                                           */
+/*---------------------------------------------------------------------------------------------------------*/
+typedef enum{                   
+    E_PHASE_FALLING     = 0,
+    E_PHASE_RISING      = 1,
+} E_TIMER_TX_PHASE ;
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Define Timer Capture Detect Edge                                                                        */
+/*---------------------------------------------------------------------------------------------------------*/
+typedef enum{                   
+    E_EDGE_FALLING      = 0,
+    E_EDGE_RISING       = 1,
+    E_EDGE_BOTH         = 2,
+} E_TIMER_TEX_EDGE ;
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Define Timer Reset or Capture                                                                           */
+/*---------------------------------------------------------------------------------------------------------*/
+typedef enum{                   
+    E_CAPTURE           = 0,
+    E_RESET             = 1,
+} E_TIMER_RSTCAP_MODE ;
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Define WDT Ioctl Command                                                                                */
@@ -113,13 +139,28 @@ int32_t DrvTIMER_Start(E_TIMER_CHANNEL ch);
 uint32_t DrvTIMER_GetIntTicks(E_TIMER_CHANNEL ch);
 int32_t DrvTIMER_ResetIntTicks(E_TIMER_CHANNEL ch);
 void DrvTIMER_Delay(E_TIMER_CHANNEL ch, uint32_t uTicks);
-void DrvTIMER_SetEXTClockFreq(uint32_t u32ClockFreq);
 int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TIMER_OPMODE op_mode);
 int32_t DrvTIMER_StartCounter(E_TIMER_CHANNEL ch);
 uint32_t DrvTIMER_GetCounters(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_OpenCapture(E_TIMER_CHANNEL ch, E_TIMER_RSTCAP_MODE mode);
+int32_t DrvTIMER_CloseCapture(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_SelectExternalMode(E_TIMER_CHANNEL ch, E_TIMER_RSTCAP_MODE mode);
+int32_t DrvTIMER_SelectCaptureEdge(E_TIMER_CHANNEL ch, E_TIMER_TEX_EDGE edge);
+int32_t DrvTIMER_EnableCaptureInt(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_DisableCaptureInt(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_EnableCapture(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_DisableCapture(E_TIMER_CHANNEL ch);
+uint32_t DrvTIMER_GetCaptureData(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_GetCaptureIntFlag(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_ClearCaptureIntFlag(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_EnableCaptureDebounce(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_DisableCaptureDebounce(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_EnableCounterDebounce(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_DisableCounterDebounce(E_TIMER_CHANNEL ch);
+int32_t DrvTIMER_SelectCounterDetectPhase(E_TIMER_CHANNEL ch, E_TIMER_TX_PHASE phase);
 uint32_t DrvTIMER_GetVersion(void);
 
-void DrvWDT_Open(E_WDT_INTERVAL WDTlevel);
+int32_t DrvWDT_Open(E_WDT_INTERVAL WDTlevel);
 void DrvWDT_Close(void);
 void DrvWDT_InstallISR(WDT_CALLBACK pvWDTISR);
 int32_t DrvWDT_Ioctl(E_WDT_CMD uWDTCmd, uint32_t uArgument);

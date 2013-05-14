@@ -19,93 +19,94 @@
 /* Macro, type and constant definitions                                                                    */
 /*---------------------------------------------------------------------------------------------------------*/
 #define TIMER_EVENT_COUNT   1
-#define TIMER_OFFSET        0x20
+const uint32_t CH_OFFSET[] = {0x0, 0x20, 0x100000, 0x100020};
+
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Global file scope (static) variables                                                                    */
 /*---------------------------------------------------------------------------------------------------------*/
 static TIMER_EVENT_T tTime0Event[TIMER_EVENT_COUNT],
-              		 tTime1Event[TIMER_EVENT_COUNT],
-			  		 tTime2Event[TIMER_EVENT_COUNT],
-			  		 tTime3Event[TIMER_EVENT_COUNT];
+                     tTime1Event[TIMER_EVENT_COUNT],
+                     tTime2Event[TIMER_EVENT_COUNT],
+                     tTime3Event[TIMER_EVENT_COUNT];
 
 int32_t volatile bIsTimer0Initial     = FALSE,
-               	 bIsTimer1Initial     = FALSE,
-			     bIsTimer2Initial     = FALSE,
-			     bIsTimer3Initial     = FALSE,
-                 bIsTimer0Used     	  = FALSE,
+                 bIsTimer1Initial     = FALSE,
+                 bIsTimer2Initial     = FALSE,
+                 bIsTimer3Initial     = FALSE,
+                 bIsTimer0Used        = FALSE,
                  bIsTimer1Used        = FALSE,
-				 bIsTimer2Used        = FALSE,
-				 bIsTimer3Used        = FALSE,
+                 bIsTimer2Used        = FALSE,
+                 bIsTimer3Used        = FALSE,
                  bIsSetTime0Event     = FALSE,
                  bIsSetTime1Event     = FALSE,
-			     bIsSetTime2Event     = FALSE,
-			     bIsSetTime3Event     = FALSE;
+                 bIsSetTime2Event     = FALSE,
+                 bIsSetTime3Event     = FALSE;
 
 static uint32_t volatile uTimer0Tick = 0,
-                		 uTimer1Tick = 0,
-                		 uTimer2Tick = 0,
-                		 uTimer3Tick = 0,
-						 uTime0EventCount = 0,
-                		 uTime1EventCount = 0,
-			    		 uTime2EventCount = 0,
-                		 uTime3EventCount = 0;
+                         uTimer1Tick = 0,
+                         uTimer2Tick = 0,
+                         uTimer3Tick = 0,
+                         uTime0EventCount = 0,
+                         uTime1EventCount = 0,
+                         uTime2EventCount = 0,
+                         uTime3EventCount = 0;
 
 static uint32_t volatile _sys_uTimer0TickPerSecond,
-						 _sys_uTimer1TickPerSecond,
-						 _sys_uTimer2TickPerSecond, 
-						 _sys_uTimer3TickPerSecond;
+                         _sys_uTimer1TickPerSecond,
+                         _sys_uTimer2TickPerSecond, 
+                         _sys_uTimer3TickPerSecond;
 
 uint32_t volatile u32EXTClockFreq = 12000000;
 
 static WDT_CALLBACK fnCallBack_WDT;
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:   		GetTimerClock                                                                 		   */
+/* Function:        GetTimerClock                                                                          */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
-/* Returns:      																						   */	
-/*					u32clk									The timer clock (Hz)   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
+/* Returns:                                                                                                */   
+/*                  u32clk                                  The timer clock (Hz)                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
+/*                  E_DRVTIMER_CLOCK_RATE                   Invalid Timer clock source                     */
 /* Description:                                                                                            */
-/*               	Get the timer clock from the specified timer channel.                                  */
+/*                  Get the timer clock from the specified timer channel.                                  */
 /*---------------------------------------------------------------------------------------------------------*/
 static uint32_t GetTimerClock(E_TIMER_CHANNEL ch)
 {
-	volatile uint8_t u8ClockcSrc;
-	volatile uint32_t u32clk = 0;
-		
-	if ((ch == E_TMR0) || (ch == E_TMR1) || (ch == E_TMR2) || (ch == E_TMR3))
-	{
-		u8ClockcSrc = (inpw(&SYSCLK->CLKSEL1) >> (8+(E_TMR0*4))) & 0x7;
+    volatile uint8_t u8ClockSrc;
+    volatile uint32_t u32clk = 0;
+        
+    if ((ch == E_TMR0) || (ch == E_TMR1) || (ch == E_TMR2) || (ch == E_TMR3))
+    {
+        u8ClockSrc = (inpw(&SYSCLK->CLKSEL1) >> (8+(ch*4))) & 0x7;
 
-		if (u8ClockcSrc == 0)			
-		{
-			u32clk = DrvSYS_GetExtClockFreq() ;  	/* Option 0: Get External Clock From DrvSYS Setting */
-		}
-		else if(u8ClockcSrc == 1)
-		{
-			u32clk = 32000;							/* Option 1: 32K */
-		}
-		else if(u8ClockcSrc == 2)
-		{
-			u32clk = DrvSYS_GetPLLClockFreq()  ;	/* Option 2: HCLK */
-		}
-		else if(u8ClockcSrc == 3)
-		{
-			u32clk = u32EXTClockFreq;			    /* Option 3: External Trigger */
-		}
-		else 
-		{
-			u32clk = 22000000; 						/* Option 4: 22MHz*/
-		}
-	}
-	else 
-    	return E_DRVTIMER_CHANNEL;
-			
-	return u32clk;
+        if (u8ClockSrc == 0)           
+        {
+            u32clk = DrvSYS_GetExtClockFreq() ;     /* Option 0: Get External Clock From DrvSYS Setting */
+        }
+        else if(u8ClockSrc == 1)
+        {
+            u32clk = __RTC_XTAL;                    /* Option 1: 32K */
+        }
+        else if(u8ClockSrc == 2)
+        {
+            u32clk = DrvSYS_GetHCLKFreq();          /* Option 2: HCLK */
+        }
+        else if(u8ClockSrc == 7)
+        {
+            u32clk = __IRC22M;                      /* Option 7: 22MHz*/
+        }else
+        {
+            return E_DRVTIMER_CLOCK_RATE;
+        }
+    }
+    else 
+        return E_DRVTIMER_CHANNEL;
+            
+    return u32clk;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -118,9 +119,9 @@ static uint32_t GetTimerClock(E_TIMER_CHANNEL ch)
 /*                      Specify the ticks per second of Timer                                              */
 /* Returns:                                                                                                */
 /*                  Return 32 bits unsigned integer where                                                  */
-/*                      	bits [ 0:23] - The Timer Compare Value(TCMPR) for Timer                        */
-/*                     	 	bits [24:31] - The pre-scale value for Timer                                   */
-/*                  (uint32_t)-1							Out of range                                   */
+/*                          bits [ 0:23] - The Timer Compare Value(TCMPR) for Timer                        */
+/*                          bits [24:31] - The pre-scale value for Timer                                   */
+/*                  (uint32_t)-1                            Out of range                                   */
 /* Description:                                                                                            */
 /*                  Calculate the Timer Compare Value and pre-scale value for Timer                        */
 /*---------------------------------------------------------------------------------------------------------*/
@@ -145,137 +146,125 @@ static uint32_t CalTimerInitValue(uint32_t u32ClockValue, uint32_t u32TicksPerSe
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	TMR0_IRQHandler                                                                        */
+/* Function:        TMR0_IRQHandler                                                                        */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*               	None                                                                                   */
-/* Returns:      																						   */
-/*					None                                                                                   */
+/*                  None                                                                                   */
+/* Returns:                                                                                                */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
-/*               	The TIMER0 default IRQ, declared in startup_NUC1xx.s                                   */
+/*                  The TIMER0 default IRQ, declared in startup_NUC1xx.s                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 void TMR0_IRQHandler(void)
-{
-    int32_t i;
-   
-  	TIMER0->TISR.TIF = 1;
+{   
+    if ((TIMER0->TCSR.IE == 1) && (TIMER0->TISR.TIF == 1))
+        TIMER0->TISR.TIF = 1;
+
+    if ((TIMER0->TEXCON.TEXEN == 1) && (TIMER0->TEXCON.TEXIEN == 1) && (TIMER0->TEXISR.TEXIF == 1))
+        TIMER0->TEXISR.TEXIF = 1;
 
     uTimer0Tick++;
- 	if (bIsSetTime0Event)						/* Timer Event Handle */
+
+    if (tTime0Event[0].active)
     {
-        for (i=0; i<TIMER_EVENT_COUNT; i++)
+        tTime0Event[0].curTick--;
+        if (tTime0Event[0].curTick == 0)
         {
-            if (tTime0Event[i].active)
-            {
-                tTime0Event[i].curTick--;
-                if (tTime0Event[i].curTick == 0)
-                {
-                    (*tTime0Event[i].funPtr)(tTime0Event[i].transParam);
-                    tTime0Event[i].curTick = tTime0Event[i].initTick;
-                }
-            }
+            (*tTime0Event[0].funPtr)(tTime0Event[0].transParam);
+            tTime0Event[0].curTick = tTime0Event[0].initTick;
         }
     }
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	TMR1_IRQHandler                                                                        */
+/* Function:        TMR1_IRQHandler                                                                        */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*               	None                                                                                   */
-/* Returns:      																						   */
-/*					None                                                                                   */
+/*                  None                                                                                   */
+/* Returns:                                                                                                */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
-/*               	The TIMER1 default IRQ, declared in startup_NUC1xx.s                                   */
+/*                  The TIMER1 default IRQ, declared in startup_NUC1xx.s                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 void TMR1_IRQHandler(void)
-{
-    int32_t i;
-    
-  	TIMER1->TISR.TIF = 1;
+{    
+    if ((TIMER1->TCSR.IE == 1) && (TIMER1->TISR.TIF == 1))
+        TIMER1->TISR.TIF = 1;
+
+    if ((TIMER1->TEXCON.TEXEN == 1) && (TIMER1->TEXCON.TEXIEN == 1) && (TIMER1->TEXISR.TEXIF == 1))
+        TIMER1->TEXISR.TEXIF = 1;
 
     uTimer1Tick++;
- 	if (bIsSetTime1Event)						/* Timer Event Handle */
+
+    if (tTime1Event[0].active)
     {
-        for (i=0; i<TIMER_EVENT_COUNT; i++)
+        tTime1Event[0].curTick--;
+        if (tTime1Event[0].curTick == 0)
         {
-            if (tTime1Event[i].active)
-            {
-                tTime1Event[i].curTick--;
-                if (tTime1Event[i].curTick == 0)
-                {
-                    (*tTime1Event[i].funPtr)(tTime1Event[i].transParam);
-                    tTime1Event[i].curTick = tTime1Event[i].initTick;
-                }
-            }
+            (*tTime1Event[0].funPtr)(tTime1Event[0].transParam);
+            tTime1Event[0].curTick = tTime1Event[0].initTick;
         }
     }
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	TMR2_IRQHandler                                                                        */
+/* Function:        TMR2_IRQHandler                                                                        */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*               	None                                                                                   */
-/* Returns:      																						   */
-/*					None                                                                                   */
+/*                  None                                                                                   */
+/* Returns:                                                                                                */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
-/*               	The TIMER2 default IRQ, declared in startup_NUC1xx.s                                   */
+/*                  The TIMER2 default IRQ, declared in startup_NUC1xx.s                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 void TMR2_IRQHandler(void)
-{
-    int32_t i;
-    
-	TIMER2->TISR.TIF = 1;
+{    
+    if ((TIMER2->TCSR.IE == 1) && (TIMER2->TISR.TIF == 1))
+        TIMER2->TISR.TIF = 1;
+
+    if ((TIMER2->TEXCON.TEXEN == 1) && (TIMER2->TEXCON.TEXIEN == 1) && (TIMER2->TEXISR.TEXIF == 1))
+        TIMER2->TEXISR.TEXIF = 1;
 
     uTimer2Tick++;
- 	if (bIsSetTime2Event)						/* Timer Event Handle */
+
+    if (tTime2Event[0].active)
     {
-        for (i=0; i<TIMER_EVENT_COUNT; i++)
+        tTime2Event[0].curTick--;
+        if (tTime2Event[0].curTick == 0)
         {
-            if (tTime2Event[i].active)
-            {
-                tTime2Event[i].curTick--;
-                if (tTime2Event[i].curTick == 0)
-                {
-                    (*tTime2Event[i].funPtr)(tTime2Event[i].transParam);
-                    tTime2Event[i].curTick = tTime2Event[i].initTick;
-                }
-            }
+            (*tTime2Event[0].funPtr)(tTime2Event[0].transParam);
+            tTime2Event[0].curTick = tTime2Event[0].initTick;
         }
     }
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	TMR3_IRQHandler                                                                        */
+/* Function:        TMR3_IRQHandler                                                                        */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*               	None                                                                                   */
-/* Returns:      																						   */
-/*					None                                                                                   */
+/*                  None                                                                                   */
+/* Returns:                                                                                                */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
-/*               	The TIMER3 default IRQ, declared in startup_NUC1xx.s                                   */
+/*                  The TIMER3 default IRQ, declared in startup_NUC1xx.s                                   */
 /*---------------------------------------------------------------------------------------------------------*/
 void TMR3_IRQHandler(void)
 {
-    int32_t i;
-    
- 	TIMER3->TISR.TIF = 1;
+    if ((TIMER3->TCSR.IE == 1) && (TIMER3->TISR.TIF == 1))
+        TIMER3->TISR.TIF = 1;
+
+    if ((TIMER3->TEXCON.TEXEN == 1) && (TIMER3->TEXCON.TEXIEN == 1) && (TIMER3->TEXISR.TEXIF == 1))
+        TIMER3->TEXISR.TEXIF = 1;
 
     uTimer3Tick++;
- 	if (bIsSetTime3Event)						/* Timer Event Handle */
+
+    if (tTime3Event[0].active)
     {
-        for (i=0; i<TIMER_EVENT_COUNT; i++)
+        tTime3Event[0].curTick--;
+        if (tTime3Event[0].curTick == 0)
         {
-            if (tTime3Event[i].active)
-            {
-                tTime3Event[i].curTick--;
-                if (tTime3Event[i].curTick == 0)
-                {
-                    (*tTime3Event[i].funPtr)(tTime3Event[i].transParam);
-                    tTime3Event[i].curTick = tTime3Event[i].initTick;
-                }
-            }
+            (*tTime3Event[0].funPtr)(tTime3Event[0].transParam);
+            tTime3Event[0].curTick = tTime3Event[0].initTick;
         }
     }
 }
@@ -294,8 +283,8 @@ void DrvTIMER_Init(void)
 {
     bIsTimer0Initial    = TRUE;
     bIsTimer1Initial    = TRUE;
-	bIsTimer2Initial    = TRUE;
-	bIsTimer3Initial    = TRUE;
+    bIsTimer2Initial    = TRUE;
+    bIsTimer3Initial    = TRUE;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -303,15 +292,15 @@ void DrvTIMER_Init(void)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /*                  uTicksPerSecond - [in]                                                                 */
 /*                      This value means how many timer interrupt ticks in one second                      */
 /*                  op_mode - [in]                                                                         */
 /*                      E_TIMER_OPMODE, E_ONESHOT_MODE/E_PERIODIC_MODE/E_TOGGLE_MODE/E_CONTINUOUS_MODE     */
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
-/*                  E_DRVTIMER_CLOCK_RATE					Calculate initial value fail                   */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
+/*                  E_DRVTIMER_CLOCK_RATE                   Calculate initial value fail                   */
 /* Description:                                                                                            */
 /*                  Open the specified timer channel with specified operation mode.                        */
 /*---------------------------------------------------------------------------------------------------------*/
@@ -329,28 +318,28 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
             
             bIsTimer0Used = TRUE;
            
-		   	SYSCLK->APBCLK.TMR0_EN = 1;
-			                                                  
-			outpw((uint32_t)&TIMER0->TCSR, 0);                  /* disable timer */
+            SYSCLK->APBCLK.TMR0_EN = 1;
+                                                              
+            outpw((uint32_t)&TIMER0->TCSR, 0);                  /* disable timer */
            
-		    TIMER0->TISR.TIF = 1;                               /* write 1 to clear for safty */
-							   
+            TIMER0->TISR.TIF = 1;                               /* write 1 to clear for safty */
+                               
             for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
                 tTime0Event[i].active = FALSE;
             }
 
-            uTimer0Tick = 0;			
-			_sys_uTimer0TickPerSecond = uTicksPerSecond;
-            		
+            uTimer0Tick = 0;            
+            _sys_uTimer0TickPerSecond = uTicksPerSecond;
+                    
             uRegTcmpr = CalTimerInitValue(GetTimerClock(E_TMR0), uTicksPerSecond); 
-			if (uRegTcmpr == (uint32_t)-1)		
-			{
-				return E_DRVTIMER_CLOCK_RATE;			
-			}
+            if (uRegTcmpr == (uint32_t)-1)      
+            {
+                return E_DRVTIMER_CLOCK_RATE;           
+            }
 
-			TIMER0->TCMPR = (uRegTcmpr << 8) >> 8;
-			outpw((uint32_t)&TIMER0->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));   			
+            TIMER0->TCMPR = (uRegTcmpr << 8) >> 8;
+            outpw((uint32_t)&TIMER0->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));               
             break;
         }
 
@@ -362,10 +351,10 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
             bIsTimer1Used = TRUE;
 
             SYSCLK->APBCLK.TMR1_EN = 1;
-			
-			outpw((uint32_t)&TIMER1->TCSR, 0);                  /* disable timer */
             
-			TIMER1->TISR.TIF = 1;                               /* write 1 to clear for safty */
+            outpw((uint32_t)&TIMER1->TCSR, 0);                  /* disable timer */
+            
+            TIMER1->TISR.TIF = 1;                               /* write 1 to clear for safty */
 
             for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
@@ -376,13 +365,13 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
             _sys_uTimer1TickPerSecond = uTicksPerSecond;
 
             uRegTcmpr = CalTimerInitValue(GetTimerClock(E_TMR1), uTicksPerSecond); 
-			if(uRegTcmpr == (uint32_t)-1)		
-			{
-				return E_DRVTIMER_CLOCK_RATE;			
-			}
+            if(uRegTcmpr == (uint32_t)-1)       
+            {
+                return E_DRVTIMER_CLOCK_RATE;           
+            }
 
-			TIMER1->TCMPR = (uRegTcmpr << 8) >> 8;
-			outpw((uint32_t)&TIMER1->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));   
+            TIMER1->TCMPR = (uRegTcmpr << 8) >> 8;
+            outpw((uint32_t)&TIMER1->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));   
             break;
         }
 
@@ -394,10 +383,10 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
             bIsTimer2Used = TRUE;
 
             SYSCLK->APBCLK.TMR2_EN =1;
-			
-			outpw((uint32_t)&TIMER2->TCSR, 0);                  /* disable timer */
+            
+            outpw((uint32_t)&TIMER2->TCSR, 0);                  /* disable timer */
 
-            TIMER2->TISR.TIF = 1;               		        /* write 1 to clear for safty */
+            TIMER2->TISR.TIF = 1;                               /* write 1 to clear for safty */
 
             for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
@@ -408,17 +397,17 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
             _sys_uTimer2TickPerSecond = uTicksPerSecond;
 
             uRegTcmpr = CalTimerInitValue(GetTimerClock(E_TMR2), uTicksPerSecond); 
-			if(uRegTcmpr == (uint32_t)-1)		
-			{
-				return E_DRVTIMER_CLOCK_RATE;			
-			}
+            if(uRegTcmpr == (uint32_t)-1)       
+            {
+                return E_DRVTIMER_CLOCK_RATE;           
+            }
 
-			TIMER2->TCMPR = (uRegTcmpr << 8) >> 8;	
-			outpw((uint32_t)&TIMER2->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));   
+            TIMER2->TCMPR = (uRegTcmpr << 8) >> 8;  
+            outpw((uint32_t)&TIMER2->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));   
             break;
         }
 
-		case E_TMR3:
+        case E_TMR3:
         {
             if ((bIsTimer3Initial != TRUE) || (bIsTimer3Used != FALSE))
                 return E_DRVTIMER_EIO;
@@ -427,7 +416,7 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
 
             SYSCLK->APBCLK.TMR3_EN = 1;
 
-			outpw((uint32_t)&TIMER3->TCSR, 0);                  /* disable timer */
+            outpw((uint32_t)&TIMER3->TCSR, 0);                  /* disable timer */
 
             TIMER3->TISR.TIF = 1;                               /* write 1 to clear for safty */
 
@@ -440,19 +429,38 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
             _sys_uTimer3TickPerSecond = uTicksPerSecond;
             
             uRegTcmpr = CalTimerInitValue(GetTimerClock(E_TMR3), uTicksPerSecond); 
-			if(uRegTcmpr == (uint32_t)-1)		
-			{
-				return E_DRVTIMER_CLOCK_RATE;			
-			}
+            if(uRegTcmpr == (uint32_t)-1)       
+            {
+                return E_DRVTIMER_CLOCK_RATE;           
+            }
 
-			TIMER3->TCMPR = (uRegTcmpr << 8) >> 8;
-			outpw((uint32_t)&TIMER3->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));    
+            TIMER3->TCMPR = (uRegTcmpr << 8) >> 8;
+            outpw((uint32_t)&TIMER3->TCSR,  (uRegTcr|(uRegTcmpr>>24))|(op_mode<<27));    
             break;
         }
 
         default:
         {
             return E_DRVTIMER_CHANNEL ;
+        }
+    }
+
+   	if (op_mode == E_TOGGLE_MODE)
+    {
+        switch (ch)
+        {
+            case E_TMR0:
+            case E_TMR1:
+            case E_TMR2:
+    		case E_TMR3:
+            {
+		    	DrvGPIO_InitFunction((E_DRVGPIO_FUNC)((uint32_t)E_FUNC_TMR0 + (uint32_t)ch));	
+            }
+    
+            default:
+            {
+                return E_DRVTIMER_CHANNEL ; 
+            }
         }
     }
 
@@ -464,10 +472,10 @@ int32_t DrvTIMER_Open(E_TIMER_CHANNEL ch, uint32_t uTicksPerSecond, E_TIMER_OPMO
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
 /*                  The function is used to close the timer channel.                                       */
 /*---------------------------------------------------------------------------------------------------------*/
@@ -478,7 +486,7 @@ int32_t DrvTIMER_Close(E_TIMER_CHANNEL ch)
         case E_TMR0:
         {
             DrvTIMER_DisableInt(E_TMR0);
-			TIMER0->TCSR.CRST 	= 1;
+            TIMER0->TCSR.CRST   = 1;
             bIsTimer0Used       = FALSE;
             bIsSetTime0Event    = FALSE;
             break;
@@ -487,7 +495,7 @@ int32_t DrvTIMER_Close(E_TIMER_CHANNEL ch)
         case E_TMR1:
         {
             DrvTIMER_DisableInt(E_TMR1);
-			TIMER1->TCSR.CRST 	= 1;
+            TIMER1->TCSR.CRST   = 1;
             bIsTimer1Used       = FALSE;
             bIsSetTime1Event    = FALSE;
             break;
@@ -496,7 +504,7 @@ int32_t DrvTIMER_Close(E_TIMER_CHANNEL ch)
         case E_TMR2:
         {
             DrvTIMER_DisableInt(E_TMR2);
-			TIMER2->TCSR.CRST 	= 1;
+            TIMER2->TCSR.CRST   = 1;
             bIsTimer2Used       = FALSE;
             bIsSetTime2Event    = FALSE;
             break;
@@ -505,7 +513,7 @@ int32_t DrvTIMER_Close(E_TIMER_CHANNEL ch)
         case E_TMR3:
         {
             DrvTIMER_DisableInt(E_TMR3);
-			TIMER3->TCSR.CRST 	= 1;
+            TIMER3->TCSR.CRST   = 1;
             bIsTimer3Used       = FALSE;
             bIsSetTime3Event    = FALSE;
             break;
@@ -525,17 +533,17 @@ int32_t DrvTIMER_Close(E_TIMER_CHANNEL ch)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /*                  uInterruptTicks - [in]                                                                 */
-/*                      Number of timer interrupt occurred										           */
+/*                      Number of timer interrupt occurred                                                 */
 /*                  pTimerCallback  - [in]                                                                 */
-/*                      The function pointer of the interrupt callback function		                       */
+/*                      The function pointer of the interrupt callback function                            */
 /*                  parameter - [in]                                                                       */
 /*                      A parameter of the callback function                                               */
 /*                                                                                                         */
 /* Returns:                                                                                                */        
-/*					uTimerEventNo							The timer event number                         */
-/*                  E_DRVTIMER_EVENT_FULL					The timer event is full                        */
+/*                  uTimerEventNo                           The timer event number                         */
+/*                  E_DRVTIMER_EVENT_FULL                   The timer event is full                        */
 /* Description:                                                                                            */
 /*                  Install the interrupt callback function of the specified timer channel.                */
 /*                  And trigger timer callback functuion when interrupt occur specified times.             */
@@ -549,8 +557,8 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
     {
         case E_TMR0:
         {
-			if (uTime0EventCount >=	TIMER_EVENT_COUNT)
-				return E_DRVTIMER_EVENT_FULL;
+            if (uTime0EventCount >= TIMER_EVENT_COUNT)
+                return E_DRVTIMER_EVENT_FULL;
 
             bIsSetTime0Event = TRUE;
             uTime0EventCount++;
@@ -558,10 +566,10 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
             {
                 if (tTime0Event[i].active  == FALSE)
                 {
-                    tTime0Event[i].active   	= TRUE;
-                    tTime0Event[i].initTick 	= uInterruptTicks;
-                    tTime0Event[i].curTick  	= uInterruptTicks;
-                    tTime0Event[i].funPtr   	= (TIMER_CALLBACK)pTimerCallback;
+                    tTime0Event[i].active       = TRUE;
+                    tTime0Event[i].initTick     = uInterruptTicks;
+                    tTime0Event[i].curTick      = uInterruptTicks;
+                    tTime0Event[i].funPtr       = (TIMER_CALLBACK)pTimerCallback;
                     tTime0Event[i].transParam   = parameter;
                     uTimerEventNo = i;
                     break;
@@ -572,8 +580,8 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
 
         case E_TMR1:
         {
-			if (uTime1EventCount >=	TIMER_EVENT_COUNT)
-				return E_DRVTIMER_EVENT_FULL;
+            if (uTime1EventCount >= TIMER_EVENT_COUNT)
+                return E_DRVTIMER_EVENT_FULL;
 
             bIsSetTime1Event = TRUE;
             uTime1EventCount++;
@@ -581,10 +589,10 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
             {
                 if (tTime1Event[i].active   == FALSE)
                 {
-                    tTime1Event[i].active   	= TRUE;
-                    tTime1Event[i].initTick 	= uInterruptTicks;
-                    tTime1Event[i].curTick  	= uInterruptTicks;
-                    tTime1Event[i].funPtr   	= (TIMER_CALLBACK)pTimerCallback;
+                    tTime1Event[i].active       = TRUE;
+                    tTime1Event[i].initTick     = uInterruptTicks;
+                    tTime1Event[i].curTick      = uInterruptTicks;
+                    tTime1Event[i].funPtr       = (TIMER_CALLBACK)pTimerCallback;
                     tTime1Event[i].transParam   = parameter;
                     uTimerEventNo = i;
                     break;
@@ -595,8 +603,8 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
 
         case E_TMR2:
         {
-			if (uTime2EventCount >=	TIMER_EVENT_COUNT)
-				return E_DRVTIMER_EVENT_FULL;
+            if (uTime2EventCount >= TIMER_EVENT_COUNT)
+                return E_DRVTIMER_EVENT_FULL;
 
             bIsSetTime2Event = TRUE;
             uTime2EventCount++;
@@ -604,10 +612,10 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
             {
                 if (tTime2Event[i].active   == FALSE)
                 {
-                    tTime2Event[i].active   	= TRUE;
-                    tTime2Event[i].initTick 	= uInterruptTicks;
-                    tTime2Event[i].curTick  	= uInterruptTicks;
-                    tTime2Event[i].funPtr   	= (TIMER_CALLBACK)pTimerCallback;
+                    tTime2Event[i].active       = TRUE;
+                    tTime2Event[i].initTick     = uInterruptTicks;
+                    tTime2Event[i].curTick      = uInterruptTicks;
+                    tTime2Event[i].funPtr       = (TIMER_CALLBACK)pTimerCallback;
                     tTime2Event[i].transParam   = parameter;
                     uTimerEventNo = i;
                     break;
@@ -618,8 +626,8 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
 
         case E_TMR3:
         {
-			if (uTime3EventCount >=	TIMER_EVENT_COUNT)
-				return E_DRVTIMER_EVENT_FULL;
+            if (uTime3EventCount >= TIMER_EVENT_COUNT)
+                return E_DRVTIMER_EVENT_FULL;
 
             bIsSetTime3Event = TRUE;
             uTime3EventCount++;
@@ -627,10 +635,10 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
             {
                 if (tTime3Event[i].active   == FALSE)
                 {
-                    tTime3Event[i].active   	= TRUE;
-                    tTime3Event[i].initTick 	= uInterruptTicks;
-                    tTime3Event[i].curTick  	= uInterruptTicks;
-                    tTime3Event[i].funPtr   	= (TIMER_CALLBACK)pTimerCallback;
+                    tTime3Event[i].active       = TRUE;
+                    tTime3Event[i].initTick     = uInterruptTicks;
+                    tTime3Event[i].curTick      = uInterruptTicks;
+                    tTime3Event[i].funPtr       = (TIMER_CALLBACK)pTimerCallback;
                     tTime3Event[i].transParam   = parameter;
                     uTimerEventNo = i;
                     break;
@@ -653,13 +661,13 @@ int32_t DrvTIMER_SetTimerEvent(E_TIMER_CHANNEL ch, uint32_t uInterruptTicks, TIM
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /*                  uTimerEventNo - [in]                                                                   */ 
-/*                      The timer event number		                                                       */
+/*                      The timer event number                                                             */
 /* Returns:                                                                                                */
 /*                  None                                                                                   */
 /* Description:                                                                                            */
-/*                  Clear the timer event of the specified timer channel.		                           */
+/*                  Clear the timer event of the specified timer channel.                                  */
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvTIMER_ClearTimerEvent(E_TIMER_CHANNEL ch, uint32_t uTimerEventNo)
 {
@@ -721,52 +729,36 @@ void DrvTIMER_ClearTimerEvent(E_TIMER_CHANNEL ch, uint32_t uTimerEventNo)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
 /*                  This function is used to enable the specified timer interrupt.                         */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_EnableInt(E_TIMER_CHANNEL ch)
 {
-    switch (ch)
+	TIMER_T * tTMR;
+
+   	switch (ch)
     {
         case E_TMR0:
-        {
-            TIMER0->TCSR.IE = 1;
-			NVIC_EnableIRQ(TMR0_IRQn); 
-            break;
-        }
-
         case E_TMR1:
-        {
-            TIMER1->TCSR.IE = 1;
-			NVIC_EnableIRQ(TMR1_IRQn); 
-            break;
-        }
-
         case E_TMR2:
+		case E_TMR3:
         {
-            TIMER2->TCSR.IE = 1;
-			NVIC_EnableIRQ(TMR2_IRQn); 
-            break;
-        }
-
-        case E_TMR3:
-        {
-            TIMER3->TCSR.IE = 1;
-			NVIC_EnableIRQ(TMR3_IRQn); 
-            break;
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TCSR.IE = 1;
+            NVIC_SetPriority((IRQn_Type)((uint32_t)TMR0_IRQn + (uint32_t)ch), (1<<__NVIC_PRIO_BITS) - 2);
+			NVIC_EnableIRQ((IRQn_Type)((uint32_t)TMR0_IRQn + (uint32_t)ch)); 
+            return E_SUCCESS ;
         }
 
         default:
         {
-			return E_DRVTIMER_CHANNEL;
+            return E_DRVTIMER_CHANNEL ; 
         }
     }
-    
-    return E_SUCCESS ;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -774,110 +766,89 @@ int32_t DrvTIMER_EnableInt(E_TIMER_CHANNEL ch)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
 /*                  This function is used to disable the specified timer interrupt                         */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_DisableInt(E_TIMER_CHANNEL ch)
 {
-    switch (ch)
+	TIMER_T * tTMR;
+
+   	switch (ch)
     {
         case E_TMR0:
-        {
-            TIMER0->TCSR.IE = 0;
-			NVIC_DisableIRQ(TMR0_IRQn); 
-            break;
-        }
-
         case E_TMR1:
-        {
-            TIMER1->TCSR.IE = 0;
-			NVIC_DisableIRQ(TMR1_IRQn); 
-            break;
-        }
-
         case E_TMR2:
+		case E_TMR3:
         {
-            TIMER2->TCSR.IE = 0;
-			NVIC_DisableIRQ(TMR2_IRQn); 
-            break;
-        }
-
-        case E_TMR3:
-        {
-            TIMER3->TCSR.IE = 0;
-			NVIC_DisableIRQ(TMR3_IRQn); 
-            break;
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TCSR.IE = 0;
+			NVIC_DisableIRQ((IRQn_Type)((uint32_t)TMR0_IRQn + (uint32_t)ch)); 
+            return E_SUCCESS ;
         }
 
         default:
         {
-			return E_DRVTIMER_CHANNEL;
+            return E_DRVTIMER_CHANNEL ; 
         }
     }
-    
-    return E_SUCCESS ;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	DrvTIMER_GetIntFlag                                                                    */
+/* Function:        DrvTIMER_GetIntFlag                                                                    */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
-/* Returns:      																						   */	
-/*					iIntStatus								0:No interrupt / 1:Interrupt occurred		   */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
+/* Returns:                                                                                                */   
+/*                  iIntStatus                              0:No interrupt / 1:Interrupt occurred          */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
-/*               	Get the interrupt flag status from the specified timer channel.	    				   */
+/*                  Get the interrupt flag status from the specified timer channel.                        */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_GetIntFlag(E_TIMER_CHANNEL ch)
 {
-	int32_t iIntStatus;
-
 	if (ch == E_TMR0 )
-		iIntStatus =  TIMER0->TISR.TIF ;
-	else if(ch == E_TMR1 )
-    	iIntStatus =  TIMER1->TISR.TIF ;
+		return TIMER0->TISR.TIF;
+	else if(ch == E_TMR1 )									 
+		return TIMER1->TISR.TIF;
 	else if(ch == E_TMR2 )
-    	iIntStatus =  TIMER2->TISR.TIF ;
+		return TIMER2->TISR.TIF;
 	else if(ch == E_TMR3 )
-    	iIntStatus =  TIMER3->TISR.TIF ;
+		return TIMER3->TISR.TIF;
 	else 
     	return E_DRVTIMER_CHANNEL;
-
-	return iIntStatus;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	DrvTIMER_ClearIntFlag                                                                  */
+/* Function:        DrvTIMER_ClearIntFlag                                                                  */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
-/* Returns:      																						   */	
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
+/* Returns:                                                                                                */   
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
-/*               	Clear the interrupt flag of the specified timer channel.   							   */
+/*                  Clear the interrupt flag of the specified timer channel.                               */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_ClearIntFlag(E_TIMER_CHANNEL ch)
 {
-	if (ch == E_TMR0 )
-		TIMER0->TISR.TIF = 1;
-	else if(ch == E_TMR1 )									 
-		TIMER1->TISR.TIF = 1;
-	else if(ch == E_TMR2 )
-		TIMER2->TISR.TIF = 1;
-	else if(ch == E_TMR3 )
-		TIMER3->TISR.TIF = 1;
-	else 
-    	return E_DRVTIMER_CHANNEL;
+    if (ch == E_TMR0 )
+        TIMER0->TISR.TIF = 1;
+    else if(ch == E_TMR1 )                                   
+        TIMER1->TISR.TIF = 1;
+    else if(ch == E_TMR2 )
+        TIMER2->TISR.TIF = 1;
+    else if(ch == E_TMR3 )
+        TIMER3->TISR.TIF = 1;
+    else 
+        return E_DRVTIMER_CHANNEL;
 
-	return E_SUCCESS;
+    return E_SUCCESS;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -885,48 +856,34 @@ int32_t DrvTIMER_ClearIntFlag(E_TIMER_CHANNEL ch)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
 /*                  Start to count the specified timer channel.                                            */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_Start(E_TIMER_CHANNEL ch)
 {
-    switch (ch)
+	TIMER_T * tTMR;
+
+   	switch (ch)
     {
         case E_TMR0:
-        {
-            TIMER0->TCSR.CEN = 1;
-            break;
-        }
-
         case E_TMR1:
-        {
-            TIMER1->TCSR.CEN = 1;
-            break;
-        }
-
         case E_TMR2:
+		case E_TMR3:
         {
-            TIMER2->TCSR.CEN = 1;
-            break;
-        }
-
-        case E_TMR3:
-        {
-            TIMER3->TCSR.CEN = 1;
-            break;
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TCSR.CEN = 1;
+            return E_SUCCESS ;
         }
 
         default:
         {
-			return E_DRVTIMER_CHANNEL;
+            return E_DRVTIMER_CHANNEL ; 
         }
     }
-    
-    return E_SUCCESS ;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -934,13 +891,13 @@ int32_t DrvTIMER_Start(E_TIMER_CHANNEL ch)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /* Returns:                                                                                                */
-/*					uTimerTick								Return the interrupt ticks					   */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                  uTimerTick                              Return the interrupt ticks                     */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
-/*                  This function is used to get the number of interrupt occurred 						   */
-/*					after the timer interrupt function is enabled.							.              */
+/*                  This function is used to get the number of interrupt occurred                          */
+/*                  after the timer interrupt function is enabled.                          .              */
 /*                  Thus DrvTIMER_EnableInt(ch) must been called in advance.                               */
 /*---------------------------------------------------------------------------------------------------------*/
 uint32_t DrvTIMER_GetIntTicks(E_TIMER_CHANNEL ch)
@@ -955,7 +912,7 @@ uint32_t DrvTIMER_GetIntTicks(E_TIMER_CHANNEL ch)
         case E_TMR1:
         {
             return uTimer1Tick;
-        }	
+        }   
 
         case E_TMR2:
         {
@@ -969,7 +926,7 @@ uint32_t DrvTIMER_GetIntTicks(E_TIMER_CHANNEL ch)
 
         default:
         {
-			return E_DRVTIMER_CHANNEL;
+            return E_DRVTIMER_CHANNEL;
         }
     }
 }
@@ -979,10 +936,10 @@ uint32_t DrvTIMER_GetIntTicks(E_TIMER_CHANNEL ch)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
 /* Description:                                                                                            */
 /*                  This function is used to clear interrupt ticks to 0.                                   */
 /*---------------------------------------------------------------------------------------------------------*/
@@ -1028,14 +985,14 @@ int32_t DrvTIMER_ResetIntTicks(E_TIMER_CHANNEL ch)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /*                  uIntTicks - [in]                                                                       */
 /*                      The delay ticks                                                                    */
 /* Returns:                                                                                                */
-/*					None                               									                   */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
-/*                  This function is used to add a delay loop by specified interrupt ticks 				   */
-/*					of the timer channel.                    											   */
+/*                  This function is used to add a delay loop by specified interrupt ticks                 */
+/*                  of the timer channel.                                                                  */
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvTIMER_Delay(E_TIMER_CHANNEL ch, uint32_t uIntTicks)
 {
@@ -1053,46 +1010,31 @@ void DrvTIMER_Delay(E_TIMER_CHANNEL ch, uint32_t uIntTicks)
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:  		DrvTIMER_SetEXTClockFreq                                                     		   */
-/*                                                                                                         */
-/* Parameter:        																					   */	
-/*	             	u32ClockFreq - [in]  																   */
-/*						Set the clock frequence (Hz) for external clock source                             */
-/* Returns:                                                                                                */
-/*               	None                                                                                   */
-/* Description:                                                                                            */
-/*               	Set the external clock frequence, it's used for timer clock source. 			       */
-/*               	User can change the timer clock source from the external clock source by calling       */
-/*               	DrvSYS_SelectIPClockSource (...)												       */
-/*---------------------------------------------------------------------------------------------------------*/
-void DrvTIMER_SetEXTClockFreq(uint32_t u32ClockFreq)
-{
-	u32EXTClockFreq = u32ClockFreq;
-}
-
-/*---------------------------------------------------------------------------------------------------------*/
 /* Function:        DrvTIMER_OpenCounter                                                                   */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  ch - [in]                                                                              */
-/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                      E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3                           */   
 /*                  uCounterBoundary - [in]                                                                */
-/*                      The parameter is used to determine how many counts occurred will	    		   */
-/*                      toggle once timer interrupt.										    		   */
+/*                      The parameter is used to determine how many counts occurred will                   */
+/*                      toggle once timer interrupt.                                                       */
 /*                  op_mode - [in]                                                                         */
-/*                      E_TIMER_OPMODE, E_ONESHOT_MODE/E_PERIODIC_MODE/E_TOGGLE_MODE/E_CONTINUOUS_MODE     */
+/*                      E_TIMER_OPMODE, E_ONESHOT_MODE/E_PERIODIC_MODE/E_CONTINUOUS_MODE                   */
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
-/*					E_DRVTIMER_EIO							Timer has not been initialized                 */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVTIMER_CHANNEL                      Invalid Timer channel                          */
+/*                  E_DRVTIMER_EIO                          Timer has not been initialized                 */
 /* Description:                                                                                            */
 /*                  This function is used to open the timer channel with the specified operation mode.     */
-/*                  And the counting source of timer is from the external event/counter.    		       */
-/*                  Only Low Density Series of NuMicro NUC100 series support this function.	   	     	   */
+/*                  And the counting source of timer is from the external event/counter.                   */
+/*                  The TIMER clock source should be set as HCLK.                                          */
+/*                  Only NuMicro NUC1x0xxxBx and NUC1x0xxxCx series support this function,                 */  
+/*                  ex:NUC140RD2BN, NUC140VE3CN.                                                           */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TIMER_OPMODE op_mode)
 {
     uint32_t i;
+	TIMER_T * tTMR;
 
     if ((bIsTimer0Initial == FALSE) || (bIsTimer1Initial == FALSE) || 
         (bIsTimer2Initial == FALSE) || (bIsTimer3Initial == FALSE))
@@ -1110,22 +1052,11 @@ int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TI
             if (bIsTimer0Used != FALSE)
                 return E_DRVTIMER_EIO;
             
-			DrvGPIO_InitFunction(E_FUNC_TMR0);	/* Open external Timer Counter pin */
-						           
             bIsTimer0Used = TRUE;
            
  		   	SYSCLK->APBCLK.TMR0_EN = 1;
 
 			outpw((uint32_t)&TIMER0->TCSR ,0 );	/* Disable timer */
-
-			TIMER0->TISR.TIF = 1;     		    /* Write 1 to clear for safty */
-			
- 			TIMER0->TCSR.MODE 		= op_mode;	/* Set operation mode */
-			TIMER0->TCMPR 			= uCounterBoundary;
-			TIMER0->TCSR.PRESCALE 	= 0;
-			TIMER0->TCSR.TDR_EN 	= 1;	
-			TIMER0->TCSR.IE 		= 0;	
-			TIMER0->TCSR.COUNTER_EN = 1;			 
 			
            	for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
@@ -1139,23 +1070,13 @@ int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TI
         {
             if (bIsTimer1Used != FALSE)
                 return E_DRVTIMER_EIO;
-            
-			DrvGPIO_InitFunction(E_FUNC_TMR1);	/* Open external Timer Counter pin */
-						           
+            				           
             bIsTimer1Used = TRUE;
            
  		   	SYSCLK->APBCLK.TMR1_EN = 1;
 
 			outpw((uint32_t)&TIMER1->TCSR ,0 );	/* Disable timer */
 
-			TIMER1->TISR.TIF 		= 1; 	    /* Write 1 to clear for safty */			
- 			TIMER1->TCSR.MODE 		= op_mode;	/* Set operation mode */
-			TIMER1->TCMPR 			= uCounterBoundary;
-			TIMER1->TCSR.PRESCALE 	= 0;
-			TIMER1->TCSR.TDR_EN 	= 1;	
-			TIMER1->TCSR.IE 		= 0;	
-			TIMER1->TCSR.COUNTER_EN = 1;			 
-			
            	for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
                 tTime1Event[i].active = FALSE;
@@ -1168,23 +1089,13 @@ int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TI
         {
             if (bIsTimer2Used != FALSE)
                 return E_DRVTIMER_EIO;
-            
-			DrvGPIO_InitFunction(E_FUNC_TMR2);	/* Open external Timer Counter pin */
-						           
+            					           
             bIsTimer2Used = TRUE;
            
  		   	SYSCLK->APBCLK.TMR2_EN = 1;
 
 			outpw((uint32_t)&TIMER2->TCSR ,0 );	/* Disable timer */
 
-			TIMER2->TISR.TIF 		= 1; 	    /* Write 1 to clear for safty */			
- 			TIMER2->TCSR.MODE 		= op_mode;	/* Set operation mode */
-			TIMER2->TCMPR 			= uCounterBoundary;
-			TIMER2->TCSR.PRESCALE 	= 0;
-			TIMER2->TCSR.TDR_EN 	= 1;	
-			TIMER2->TCSR.IE 		= 0;	
-			TIMER2->TCSR.COUNTER_EN = 1;			 
-			
            	for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
                 tTime2Event[i].active = FALSE;
@@ -1197,23 +1108,13 @@ int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TI
         {
             if (bIsTimer3Used != FALSE)
                 return E_DRVTIMER_EIO;
-            
-			DrvGPIO_InitFunction(E_FUNC_TMR3);	/* Open external Timer Counter pin */
-						           
+            						           
             bIsTimer3Used = TRUE;
            
  		   	SYSCLK->APBCLK.TMR3_EN = 1;
 
 			outpw((uint32_t)&TIMER3->TCSR ,0 );	/* Disable timer */
 
-			TIMER3->TISR.TIF 		= 1; 	    /* Write 1 to clear for safty */			
- 			TIMER3->TCSR.MODE 		= op_mode;	/* Set operation mode */
-			TIMER3->TCMPR 			= uCounterBoundary;
-			TIMER3->TCSR.PRESCALE 	= 0;
-			TIMER3->TCSR.TDR_EN 	= 1;	
-			TIMER3->TCSR.IE 		= 0;	
-			TIMER3->TCSR.COUNTER_EN = 1;			 
-			
            	for (i=0; i<TIMER_EVENT_COUNT; i++)
             {
                 tTime3Event[i].active = FALSE;
@@ -1225,6 +1126,30 @@ int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TI
         default:
         {
             return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+        case E_TMR3:
+        {
+            /* TIMER clock source should be set as HCLK */
+            DrvSYS_SelectIPClockSource((E_SYS_IP_CLKSRC)((uint32_t)E_SYS_TMR0_CLKSRC+(uint32_t)ch), 2);  
+
+			DrvGPIO_InitFunction((E_DRVGPIO_FUNC)((uint32_t)E_FUNC_TMR0 + (uint32_t)ch));	/* Open external Timer Counter source */
+
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);   
+			tTMR->TISR.TIF      = 1;        /* Write 1 to clear for safty */			
+ 			tTMR->TCSR.MODE     = op_mode;	/* Set operation mode */
+			tTMR->TCMPR         = uCounterBoundary;
+			tTMR->TCSR.PRESCALE = 0;
+			tTMR->TCSR.TDR_EN 	= 1;	
+			tTMR->TCSR.IE       = 0;	
+			tTMR->TCSR.CTB      = 1;
+            break;			 
         }
     }
 
@@ -1242,55 +1167,33 @@ int32_t DrvTIMER_OpenCounter(E_TIMER_CHANNEL ch, uint32_t uCounterBoundary, E_TI
 /*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
 /* Description:                                                                                            */
 /*                  Start counting of the specified timer channel.						                   */
-/*                  Only Low Density Series of NuMicro NUC100 series support this function.	   		       */
+/*                  Only NuMicro NUC1x0xxxBx and NUC1x0xxxCx series support this function,                 */  
+/*                  ex:NUC140RD2BN, NUC140VE3CN.                                                           */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvTIMER_StartCounter(E_TIMER_CHANNEL ch)
 {
-    switch (ch)
+	TIMER_T * tTMR;
+
+   	switch (ch)
     {
         case E_TMR0:
-        {
-			if (TIMER0->TCSR.IE == 0)
-				TIMER0->TCMPR 	= 0;	// If use Polling Mode, do not configure Timer Compare Register. 
-			TIMER0->TCSR.CRST 	= 1;					
-			TIMER0->TCSR.CEN 	= 1;					
-            break;
-        }
-
         case E_TMR1:
-        {
-			if (TIMER1->TCSR.IE == 0)
-				TIMER1->TCMPR 	= 0;	// If use Polling Mode, do not configure Timer Compare Register. 
-			TIMER1->TCSR.CRST 	= 1;					
-			TIMER1->TCSR.CEN 	= 1;
-            break;
-        }
-
         case E_TMR2:
+		case E_TMR3:
         {
-			if (TIMER2->TCSR.IE == 0)
-				TIMER2->TCMPR 	= 0;	// If use Polling Mode, do not configure Timer Compare Register. 
-			TIMER2->TCSR.CRST 	= 1;					
-			TIMER2->TCSR.CEN 	= 1;					
-            break;
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);   
+            if (tTMR->TCSR.IE == 0)
+				tTMR->TCMPR = 0;	// If use Polling Mode, do not configure Timer Compare Register. 
+			tTMR->TCSR.CRST 	= 1;					
+			tTMR->TCSR.CEN 	    = 1;					
+            return E_SUCCESS;
         }
-
-        case E_TMR3:
-        {
- 			if (TIMER3->TCSR.IE == 0)
-				TIMER3->TCMPR 	= 0;	// If use Polling Mode, do not configure Timer Compare Register. 
-			TIMER3->TCSR.CRST 	= 1;					
-			TIMER3->TCSR.CEN 	= 1;					
-            break;
-       }
 
         default:
         {
-            return E_DRVTIMER_CHANNEL ;
+            return E_DRVTIMER_CHANNEL ; 
         }
     }
-
-    return E_SUCCESS;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -1304,44 +1207,629 @@ int32_t DrvTIMER_StartCounter(E_TIMER_CHANNEL ch)
 /*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
 /* Description:                                                                                            */
 /*                  This function is used to get the current counters of the specified timer channel.      */
+/*                  Only NuMicro NUC1x0xxxBx and NUC1x0xxxCx series support this function,                 */  
+/*                  ex:NUC140RD2BN, NUC140VE3CN.                                                           */
 /*---------------------------------------------------------------------------------------------------------*/
 uint32_t DrvTIMER_GetCounters(E_TIMER_CHANNEL ch)
 {
-    volatile uint32_t u32Counters;
+	TIMER_T * tTMR;
 
-    switch (ch)
+   	switch (ch)
     {
         case E_TMR0:
-        {
-            u32Counters = TIMER0->TDR; 
-            break;  
-        }
-
         case E_TMR1:
-        {
-            u32Counters = TIMER1->TDR; 
-            break;  
-        }	
-
         case E_TMR2:
+		case E_TMR3:
         {
-            u32Counters = TIMER2->TDR; 
-            break;  
-        }
-
-        case E_TMR3:
-        {
-            u32Counters = TIMER3->TDR; 
-            break;  
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            return tTMR->TDR;
         }
 
         default:
         {
-			return E_DRVTIMER_CHANNEL;
+            return E_DRVTIMER_CHANNEL ; 
         }
     }
+}
 
-    return u32Counters;
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_OpenCapture                                                                   */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                  mode - [in]                                                                            */
+/*                      E_TIMER_RSTCAP_MODE,                                                               */
+/*                          E_CAPTURE : Run capture function                                               */
+/*                          E_RESET   : Reset counter value of specified timer channel                     */
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to initial the external timer capture source and                 */
+/*                  set to start catpure or reset specified timer counter.                                 */
+/*                  The TIMER clock source should be set as HCLK.                                          */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_OpenCapture(E_TIMER_CHANNEL ch, E_TIMER_RSTCAP_MODE mode)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+            /* TIMER clock source should be set as HCLK */
+            DrvSYS_SelectIPClockSource((E_SYS_IP_CLKSRC)((uint32_t)E_SYS_TMR0_CLKSRC+(uint32_t)ch), 2);  
+
+            DrvGPIO_InitFunction((E_DRVGPIO_FUNC)((uint32_t)E_FUNC_T0EX + (uint32_t)ch));
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.RSTCAPSEL = mode;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_CloseCapture                                                                  */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to close the external timer capture source.                      */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_CloseCapture(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+			outpw((uint32_t)&tTMR->TEXCON ,0 );	
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_SelectExternalMode                                                            */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                  mode - [in]                                                                            */
+/*                      E_TIMER_RSTCAP_MODE,                                                               */
+/*                          E_CAPTURE : Run capture function                                               */
+/*                          E_RESET   : Reset counter value of specified timer channel                     */
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to select to run capture function or reset the timer counter.    */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_SelectExternalMode(E_TIMER_CHANNEL ch, E_TIMER_RSTCAP_MODE mode)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.RSTCAPSEL = mode;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_SelectCaptureEdge                                                             */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                  edge - [in]                                                                            */
+/*                      E_TIMER_TEX_EDGE,                                                                  */
+/*                          E_EDGE_FALLING : 1 to 0 transition on TEX will be detected.                    */
+/*                          E_EDGE_RISING  : 0 to 1 transition on TEX will be detected.                    */
+/*                          E_EDGE_BOTH    : either 0 to 1 or 1 to 0 transition on TEX will be detected.   */
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to configure the detect edge of timer capture mode.              */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_SelectCaptureEdge(E_TIMER_CHANNEL ch, E_TIMER_TEX_EDGE edge)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEX_EDGE = edge;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_EnableCaptureInt                                                              */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to enable the timer external interrupt function. If any          */
+/*                  transition on TEX pin and matched with the E_TIMER_TEX_EDGE settings, system will      */
+/*                  cause the external interrupt flag(TEXIF) to 1.                                         */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_EnableCaptureInt(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEXIEN = 1;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_DisableCaptureInt                                                             */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to disable the timer external interrupt function.                */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_DisableCaptureInt(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEXIEN = 0;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_EnableCapture                                                                 */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to enable the specified capture function.                        */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_EnableCapture(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEXEN = 1;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_DisableCapture                                                                */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to disable the specified capture function.                       */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_DisableCapture(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEXEN = 0;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_GetCaptureData                                                                */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:                                                                                                */
+/*					Capture value							Return capture value    	                   */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to get the capture value of the specified timer channel.         */
+/*                  And the return data is valid only if the capture interrupt flag set to 1 by H.W.       */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+uint32_t DrvTIMER_GetCaptureData(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            return tTMR->TCAP;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     	DrvTIMER_GetCaptureIntFlag                                                             */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:      																						   */	
+/*					External interrupt flag 				0:No interrupt / 1:Interrupt occurred		   */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*               	Get the external interrupt flag status from the specified timer channel.	  		   */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_GetCaptureIntFlag(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            return tTMR->TEXISR.TEXIF;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     	DrvTIMER_ClearCaptureIntFlag                                                           */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:      																						   */	
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*               	Clear the external interrupt flag of the specified timer channel.					   */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_ClearCaptureIntFlag(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXISR.TEXIF = 1;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     	DrvTIMER_EnableCaptureDebounce                                                         */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:      																						   */	
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*               	Enable the debounce function of specified external capture input source.               */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_EnableCaptureDebounce(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEXDB = 1;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     	DrvTIMER_DisableCaptureDebounce                                                        */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:      																						   */	
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*               	Disable the debounce function of specified external capture input source.              */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_DisableCaptureDebounce(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TEXDB = 0;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     	DrvTIMER_EnableCounterDebounce                                                         */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:      																						   */	
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*               	Enable the debounce function of specified external counter input source.               */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_EnableCounterDebounce(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TCDB = 1;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:     	DrvTIMER_DisableCounterDebounce                                                        */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/* Returns:      																						   */	
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*               	Disable the debounce function of specified external counter input source.              */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_DisableCounterDebounce(E_TIMER_CHANNEL ch)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TCDB = 0;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
+}
+
+/*---------------------------------------------------------------------------------------------------------*/
+/* Function:        DrvTIMER_SelectCounterDetectPhase                                                      */
+/*                                                                                                         */
+/* Parameters:                                                                                             */
+/*                  ch - [in]                                                                              */
+/*      			    E_TIMER_CHANNEL, it could be E_TMR0/E_TMR1/E_TMR2/E_TMR3						   */	
+/*                  phase - [in]                                                                           */
+/*                      E_TIMER_TX_PHASE,                                                                  */
+/*                          E_PHASE_FALLING : A falling edge of external counter pin will be counted.      */
+/*                          E_PHASE_RISING  : A rising edge of external counter pin will be counted.       */
+/* Returns:                                                                                                */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVTIMER_CHANNEL						Invalid Timer channel        		           */
+/* Description:                                                                                            */
+/*                  This function is used to configure the counter detect phase of specified source.       */
+/*                  Only NuMicro NUC1x0xxxCx series support this function, ex:NUC140VE3CN.                 */
+/*---------------------------------------------------------------------------------------------------------*/
+int32_t DrvTIMER_SelectCounterDetectPhase(E_TIMER_CHANNEL ch, E_TIMER_TX_PHASE phase)
+{
+	TIMER_T * tTMR;
+
+   	switch (ch)
+    {
+        case E_TMR0:
+        case E_TMR1:
+        case E_TMR2:
+		case E_TMR3:
+        {
+        	tTMR = (TIMER_T *)((uint32_t)TIMER0 + CH_OFFSET[ch]);         
+            tTMR->TEXCON.TX_PHASE = phase;
+            return E_SUCCESS;
+        }
+
+        default:
+        {
+            return E_DRVTIMER_CHANNEL ; 
+        }
+    }
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
@@ -1350,13 +1838,13 @@ uint32_t DrvTIMER_GetCounters(E_TIMER_CHANNEL ch)
 /* Parameters:                                                                                             */
 /*                  None                                                                                   */
 /* Returns:                                                                                                */
-/*                  DRVTIMER_VERSION_NUM						Version number of Timer/WDT driver         */
+/*                  DRVTIMER_VERSION_NUM                        Version number of Timer/WDT driver         */
 /* Description:                                                                                            */
 /*                 Get the version number of Timer/WDT driver.                                             */
 /*---------------------------------------------------------------------------------------------------------*/
 uint32_t DrvTIMER_GetVersion(void)
 {
-	return DRVTIMER_VERSION_NUM;
+    return DRVTIMER_VERSION_NUM;
 }
 
 
@@ -1365,23 +1853,28 @@ uint32_t DrvTIMER_GetVersion(void)
 
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Function:     	WDT_IRQHandler                                                                         */
+/* Function:        WDT_IRQHandler                                                                         */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*               	None                                                                                   */
-/* Returns:      																						   */
-/*					None                                                                                   */
+/*                  None                                                                                   */
+/* Returns:                                                                                                */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
-/*               	The WatchDog Timer(WDT) default IRQ, declared in startup_NUC1xx.s                      */
+/*                  The WatchDog Timer(WDT) default IRQ, declared in startup_NUC1xx.s                      */
+/*                  All bits in WDT register are write-protected. User must to check the REGWRPROT bit is  */
+/*                  enabled or disabled if write the specified WDT bit fail.                               */
 /*---------------------------------------------------------------------------------------------------------*/
 void WDT_IRQHandler(void)
 {
+    volatile uint32_t uWakeupFlag;
 
-    WDT->WTCR.WTIF = 1;         /* Clear the WDT INT Flag */
+    uWakeupFlag = WDT->WTCR.WTWKF;  /* Stored WDT wakeup flag */
+
+    WDT->WTCR.WTIF = 1;             /* Clear the WDT INT Flag */
 
     if (fnCallBack_WDT)        
     {
-        fnCallBack_WDT(NULL);
+        fnCallBack_WDT(uWakeupFlag);
     }
 }
 
@@ -1390,36 +1883,57 @@ void WDT_IRQHandler(void)
 /*                                                                                                         */
 /* Parameters:                                                                                             */
 /*                  WDTlevel -[in]                                                                         */
-/*					    E_WDT_INTERVAL, enumerate the WDT time-out interval.				               */
-/*					    Refer to WDT_INTERVAL enumeration for detail time-out value.   		               */
+/*                      E_WDT_INTERVAL, enumerate the WDT time-out interval.                               */
+/*                      Refer to WDT_INTERVAL enumeration for detail time-out value.                       */
 /* Returns:                                                                                                */
-/*					None                                        							               */
+/*					E_SUCCESS								Operation successful   				           */
+/*					E_DRVWDT_OPEN						    WDT open fail                  		           */
 /* Description:                                                                                            */
 /*                  Enable WDT engine clock and set WDT time-out interval.                                 */
+/*                  All bits in WDT register are write-protected. User must to check the REGWRPROT bit is  */
+/*                  enabled or disabled if write the specified WDT bit fail.                               */
 /*---------------------------------------------------------------------------------------------------------*/
-void DrvWDT_Open(E_WDT_INTERVAL WDTlevel)
+int32_t DrvWDT_Open(E_WDT_INTERVAL WDTlevel)
 {
+	if ((SYS->REGWRPROT & 0x01) == 0)
+    {
+        /* The protected Registers are locked */
+        return E_DRVWDT_OPEN;
+    }
+
+    SYSCLK->APBCLK.WDT_EN = 1;              /* Enable WatchDog Timer Clock */   
+     
     DrvWDT_Ioctl(E_WDT_IOC_STOP_TIMER, 0);  /* Stop WDT first */
 
-    SYSCLK->APBCLK.WDT_EN = 1;  /* Enable WatchDog Timer Clock */    
+    WDT->WTCR.WTIS = WDTlevel;              /* Select WatchDog Timer Interval */
 
-    WDT->WTCR.WTIS = WDTlevel;  /* Select WatchDog Timer Interval */
+    return E_SUCCESS;
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:        DrvWDT_Close                                                                           */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*					None                                        							               */
+/*                  None                                                                                   */
 /* Returns:                                                                                                */
-/*					None                                        							               */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
 /*                  The function is used to stop/disable WDT relative functions.                           */
+/*                  All bits in WDT register are write-protected. User must to check the REGWRPROT bit is  */
+/*                  enabled or disabled if write the specified WDT bit fail.                               */
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvWDT_Close(void)
 {
-    DrvWDT_Ioctl(E_WDT_IOC_STOP_TIMER, 0);     /* Stop WDT */
-    DrvWDT_Ioctl(E_WDT_IOC_DISABLE_INT, 0);    /* Disable WDT Interrupt */
+    DrvWDT_Ioctl(E_WDT_IOC_STOP_TIMER, 0);      /* Stop WDT */
+    DrvWDT_Ioctl(E_WDT_IOC_DISABLE_INT, 0);     /* Disable WDT Interrupt */
+    DrvWDT_Ioctl(E_WDT_IOC_DISABLE_WAKEUP, 0);  /* Disable WDT wakeup fuction */              
+    
+    /* Add delay loop to make sure the internal WDT status is stable then disable WDT engine clock */ 
+    if (DrvSYS_GetHCLKFreq() != __IRC10K)
+    {        
+        volatile uint32_t i=0x2000;
+        while (i--);
+    }
 
     SYSCLK->APBCLK.WDT_EN = 0;
 }
@@ -1428,24 +1942,26 @@ void DrvWDT_Close(void)
 /* Function:        DrvWDT_InstallISR                                                                      */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*					pvWDTISR - [in]                               							               */
-/*                      The function pointer of the interrupt service routine		                       */
+/*                  pvWDTISR - [in]                                                                        */
+/*                      The function pointer of the interrupt service routine                              */
 /* Returns:                                                                                                */
-/*					None                                        							               */
+/*                  None                                                                                   */
 /* Description:                                                                                            */
 /*                  The function is used to install WDT interrupt service routine.                         */
+/*                  All bits in WDT register are write-protected. User must to check the REGWRPROT bit is  */
+/*                  enabled or disabled if write the specified WDT bit fail.                               */
 /*---------------------------------------------------------------------------------------------------------*/
 void DrvWDT_InstallISR(WDT_CALLBACK pvWDTISR)
 {
-	WDT->WTCR.WTIE = 1 ;
-	fnCallBack_WDT = (WDT_CALLBACK)pvWDTISR; 	
+    WDT->WTCR.WTIE = 1;
+    fnCallBack_WDT = (WDT_CALLBACK)pvWDTISR;    
 }
 
 /*---------------------------------------------------------------------------------------------------------*/
 /* Function:        DrvWDT_Ioctl                                                                           */
 /*                                                                                                         */
 /* Parameters:                                                                                             */
-/*					uWDTCmd - [in]                               							               */
+/*                  uWDTCmd - [in]                                                                         */
 /*                      E_WDT_CMD commands, it could be the one of the follow commands                     */
 /*                          E_WDT_IOC_START_TIMER,                                                         */
 /*                          E_WDT_IOC_STOP_TIMER,                                                          */
@@ -1457,16 +1973,18 @@ void DrvWDT_InstallISR(WDT_CALLBACK pvWDTISR)
 /*                          E_WDT_IOC_ENABLE_RESET_FUNC,                                                   */
 /*                          E_WDT_IOC_DISABLE_RESET_FUNC,                                                  */
 /*                          E_WDT_IOC_SET_INTERVAL                                                         */
-/*					uArgument - [in]                               						                   */
-/*                      Set the argument for the specified WDT command	                                   */
+/*                  uArgument - [in]                                                                       */
+/*                      Set the argument for the specified WDT command                                     */
 /* Returns:                                                                                                */
-/*					E_SUCCESS								Operation successful   				           */
-/*					E_DRVWDT_CMD							Invalid WDT command		                       */
+/*                  E_SUCCESS                               Operation successful                           */
+/*                  E_DRVWDT_CMD                            Invalid WDT command                            */
 /* Description:                                                                                            */
 /*                  The function is used to operate more WDT applications, it could be the                 */
 /*                  start/stop the WDT, enable/disable WDT interrupt function, enable/disable WDT          */
-/*                  time-out wake up function, enable/disable system reset when WDT time-out and 		   */
-/*					set the WDT time-out interval.       												   */
+/*                  time-out wake up function, enable/disable system reset when WDT time-out and           */
+/*                  set the WDT time-out interval.                                                         */
+/*                  All bits in WDT register are write-protected. User must to check the REGWRPROT bit is  */
+/*                  enabled or disabled if write the specified WDT bit fail.                               */
 /*---------------------------------------------------------------------------------------------------------*/
 int32_t DrvWDT_Ioctl(E_WDT_CMD uWDTCmd, uint32_t uArgument)
 {
@@ -1474,57 +1992,58 @@ int32_t DrvWDT_Ioctl(E_WDT_CMD uWDTCmd, uint32_t uArgument)
     {
         case E_WDT_IOC_START_TIMER  :
         {
- 			WDT->WTCR.WTE = 1;
+            WDT->WTCR.WTE = 1;
             break ;
         }
 
         case E_WDT_IOC_STOP_TIMER :
         {
- 			WDT->WTCR.WTE = 0;
+            WDT->WTCR.WTE = 0;
             break ;
         }
 
         case E_WDT_IOC_ENABLE_INT :
         {
- 			WDT->WTCR.WTIE = 1;
-			NVIC_EnableIRQ(WDT_IRQn); 
+            WDT->WTCR.WTIE = 1;
+            NVIC_SetPriority(WDT_IRQn, (1<<__NVIC_PRIO_BITS) - 2);
+            NVIC_EnableIRQ(WDT_IRQn); 
             break ;
         }
 
         case E_WDT_IOC_DISABLE_INT :
         {
-  			WDT->WTCR.WTIE = 0;
-			NVIC_DisableIRQ(WDT_IRQn); 
+            WDT->WTCR.WTIE = 0;
+            NVIC_DisableIRQ(WDT_IRQn); 
             break ;
         }
 
         case E_WDT_IOC_ENABLE_WAKEUP :
         {
-	        WDT->WTCR.WTWKE = 1;            
+            WDT->WTCR.WTWKE = 1;            
             break ;
         }
 
         case E_WDT_IOC_DISABLE_WAKEUP :
         {
-	        WDT->WTCR.WTWKE = 0;            
+            WDT->WTCR.WTWKE = 0;            
             break ;
         }
 
         case E_WDT_IOC_RESET_TIMER:
         {
- 			WDT->WTCR.WTR = 1;
+            WDT->WTCR.WTR = 1;
             break ;
         }
 
         case E_WDT_IOC_ENABLE_RESET_FUNC :
         {
-			WDT->WTCR.WTRE = 1;
+            WDT->WTCR.WTRE = 1;
             break ;
         }
 
         case E_WDT_IOC_DISABLE_RESET_FUNC:
         {
- 			WDT->WTCR.WTRE = 0;
+            WDT->WTCR.WTRE = 0;
             break ;
         }
 
@@ -1535,7 +2054,7 @@ int32_t DrvWDT_Ioctl(E_WDT_CMD uWDTCmd, uint32_t uArgument)
             break ;
         }
        
-		default :
+        default :
         {
             return E_DRVWDT_CMD;
         }

@@ -24,6 +24,16 @@
 #	endif
 #endif
 
+//#if !defined __CC_ARM && __STDC_VERSION__ >= 199901L
+//#	define TT_INLINE __INLINE
+//#elif defined __STATIC_INLINE
+#if defined __STATIC_INLINE
+#	define TT_INLINE __STATIC_INLINE
+#elif defined __INLINE
+#	define TT_INLINE static __INLINE
+#else
+#	define TT_INLINE static __inline
+#endif
 
 #include "./InInc/tt_private.h"
 
@@ -36,7 +46,12 @@ extern "C" {
 /* Param: systick_frequency: Clock frequency of systick */
 void tt_init (uint32_t systick_frequency);
 
-TT_THREAD_T *tt_thread_self (void);
+TT_INLINE TT_THREAD_T *tt_thread_self (void)
+{
+	extern TT_THREAD_T *g_thread_current;
+	return g_thread_current;
+}	
+
 TT_THREAD_T *tt_thread_create (
 	const char		*name,
 	unsigned char	priority,
@@ -66,6 +81,7 @@ unsigned char tt_get_priority (TT_THREAD_T *thread);
 #include "./InInc/tt_mutex.h"
 #include "./InInc/tt_recursive_mutex.h"
 #include "./InInc/tt_condition.h"
+#include "./InInc/tt_wait_queue.h"
 #include "./InInc/tt_msg.h"
 #include "./InInc/tt_time.h"
 

@@ -1,0 +1,112 @@
+### uVision2 Project, (C) Keil Software
+### Do not modify !
+
+Target (Project), 0x0003 // Tools: 'ARM-GNU'
+
+Group (CMSIS)
+Group (Driver)
+Group (Src)
+Group (TinyThread)
+
+File 1,1,<../../../../M051SeriesBSP/LibM051Series/CMSIS/CM0/CoreSupport/core_cm0.c><core_cm0.c>
+File 1,5,<..\..\..\..\M051SeriesBSP\LibM051Series\CMSIS\CM0\CoreSupport\core_cm0.h><core_cm0.h>
+File 1,5,<..\..\..\..\M051SeriesBSP\LibM051Series\CMSIS\CM0\DeviceSupport\Nuvoton\M051Series\M051Series.h><M051Series.h>
+File 1,5,<..\..\..\..\M051SeriesBSP\LibM051Series\CMSIS\CM0\DeviceSupport\Nuvoton\M051Series\system_M051Series.h><system_M051Series.h>
+File 1,1,<../../../../M051SeriesBSP/LibM051Series/CMSIS/CM0/DeviceSupport/Nuvoton/M051Series/system_M051Series.c><system_M051Series.c>
+File 1,1,<../../../../M051SeriesBSP/LibM051Series/CMSIS/CM0/DeviceSupport/Nuvoton/M051Series/startup/gcc/startup_M051Series.c><startup_M051Series.c>
+File 1,2,<../../../../M051SeriesBSP/LibM051Series/CMSIS/CM0/DeviceSupport/Nuvoton/M051Series/startup/gcc/semihost.s><semihost.s>
+File 2,1,<../../../../M051SeriesBSP/LibM051Series/CMSIS/CM0/DeviceSupport/Nuvoton/M051Series/startup/gcc/printf.c><printf.c>
+File 2,1,<../../../../M051SeriesBSP/LibM051Series/CMSIS/CM0/DeviceSupport/Nuvoton/M051Series/startup/gcc/syscalls.c><syscalls.c>
+File 2,1,<../../../../M051SeriesBSP/LibM051Series/StdDriver/src/retarget.c><retarget.c>
+File 3,1,<../Main.c><Main.c>
+File 3,5,<..\tt_config.h><tt_config.h>
+File 4,1,<../../../../Src/tt.c><tt.c>
+
+
+Options 1,0,0  // Target 'Project'
+ Device (Cortex-M0)
+ Vendor (ARM)
+ Cpu (CLOCK(12000000) CPUTYPE("Cortex-M0"))
+ FlashUt ()
+ StupF ()
+ FlashDR ()
+ DevID (4803)
+ Rgf ()
+ Mem ()
+ C ()
+ A ()
+ RL ()
+ OH ()
+ DBC_IFX ()
+ DBC_CMS ()
+ DBC_AMS ()
+ DBC_LMS ()
+ UseEnv=0
+ EnvBin ()
+ EnvInc ()
+ EnvLib ()
+ EnvReg ()
+ OrgReg (ST\STM32F10x\)
+ TgStat=16
+ OutDir (.\)
+ OutName (project)
+ GenApp=1
+ GenLib=0
+ GenHex=0
+ Debug=1
+ Browse=0
+ LstDir (.\)
+ HexSel=1
+ MG32K=0
+ TGMORE=0
+ RunUsr 0 0 <>
+ RunUsr 1 0 <>
+ BrunUsr 0 0 <>
+ BrunUsr 1 0 <>
+ CrunUsr 0 0 <>
+ CrunUsr 1 0 <>
+ SVCSID <>
+ GLFLAGS=2046
+ GCPUTYP ("Cortex-M0")
+ TFlagsA { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ OCMARM { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ OCMARAM { 0,0,0,0,0,0,0,0,0 }
+ OCMAROM { 0,0,0,0,0,0,0,0,0 }
+ OCMXRAM { 0,0,0,0,0,0,0,0,0 }
+ OCMIRAM2 { 0,0,0,0,0,0,0,0,0 }
+ OCMIROM2 { 0,0,0,0,0,0,0,0,0 }
+ ACCFLG { 0,64,32,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ ACMISC (--specs=nano.specs -ffunction-sections --std=c99)
+ ACDEFN (DEBUG_ENABLE_SEMIHOST)
+ ACUDEF ()
+ ACINCD (..;..\..\..\..\M051SeriesBSP\LibM051Series\CMSIS\CM0\CoreSupport;..\..\..\..\M051SeriesBSP\LibM051Series\CMSIS\CM0\DeviceSupport\Nuvoton\M051Series;..\..\..\..\M051SeriesBSP\LibM051Series\StdDriver\inc)
+ AASFLG { 4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ AAMISC ()
+ AADEFN (DEBUG_ENABLE_SEMIHOST)
+ AAUDEF ()
+ AAINCD ()
+ PropFld { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ IncBld=1
+ AlwaysBuild=0
+ GenAsm=0
+ AsmAsm=0
+ PublicsOnly=0
+ StopCode=3
+ CustArgs ()
+ LibMods ()
+ ALDFLAG { 21,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }
+ ALDTADR ()
+ ALDDADR ()
+ ALDBSSR ()
+ ALDICLB ()
+ ALDICDR ()
+ ALDMISC (--specs=nano.specs -Wl,--gc-sections)
+ ALDSCAT (.\link.ld)
+  OPTDL (SARMCM3.DLL)()(DARMCM1.DLL)()(SARMCM3.DLL)()(TARMCM1.DLL)()
+  OPTDBG 311294,15,()()()()()()()()()() (Bin\Nu_Link.dll)()()()
+ FLASH1 { 9,0,0,0,1,0,0,0,10,16,0,0,0,0,0,0,0,0,0,0 }
+ FLASH2 (Bin\Nu_Link.dll)
+ FLASH3 ("" ())
+ FLASH4 ()
+EndOpt
+

@@ -15,18 +15,12 @@
 #endif
 
 /*---------------------------------------------------------------------------------------------------------*/
-/* Macro Definition                                                                                        */
-/*---------------------------------------------------------------------------------------------------------*/
-
-//#define DEBUG_ENABLE_SEMIHOST   /* To enable semihosted. !!!The SEMIHOSTED of startup_NUC1xx.s must be {TRUE} */
-
-/* Using UART0 or UART1 */  
-#define DEBUG_PORT   0 		    /*0:UART0  1:UART1 2:UART2 */
-
-/*---------------------------------------------------------------------------------------------------------*/
 /* Global variables                                                                                        */
 /*---------------------------------------------------------------------------------------------------------*/
-struct __FILE { int handle; /* Add whatever you need here */ };
+#if !(defined(__ICCARM__) && (__VER__ >= 6010000))
+ struct __FILE { int handle; /* Add whatever you need here */ };
+#endif
+ 
 FILE __stdout;
 FILE __stdin;
 
@@ -192,7 +186,9 @@ int fgetc(FILE *f) {
   return (GetChar());
 }
 
-
+#ifdef ferror
+#	undef ferror
+#endif
 int ferror(FILE *f) {
   return EOF;
 }
