@@ -110,6 +110,8 @@ extern void tt_set_priority_inherit (TT_THREAD_T *thread, unsigned char priority
 
 extern void tt_timer_init (uint32_t systick_frequency);
 extern void tt_enable_usleep (void);
+extern bool __tt_timer_to_run (void);
+extern void __tt_timer_run (void);
 extern void __tt_wakeup (void);
 
 #ifdef	TT_SUPPORT_MUTEX

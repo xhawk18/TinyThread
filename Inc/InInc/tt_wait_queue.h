@@ -21,6 +21,8 @@ TT_INLINE void tt_wq_init (TT_WQ_T *wait_queue)
 
 /* Wait an event on wait queue */
 void tt_wq_wait_event (TT_WQ_T *wait_queue);
+/* Wait an event on wait queue */
+int tt_wq_wait_event_timeout (TT_WQ_T *wait_queue, uint32_t msec);
 /* Set an event on wait queue */
 void tt_wq_set_event (TT_WQ_T *wait_queue);
 

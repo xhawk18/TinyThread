@@ -353,7 +353,8 @@ void __tt_schedule (void)
 	//sysSafePrintf ("%08x %08x %08x\n", g_thread_current->uPC, g_thread_current->uLR, g_thread_current->uSP);
 
 end:
-	if (g_thread_current != g_thread_next)
+	if (g_thread_current != g_thread_next
+		|| __tt_timer_to_run())
 		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 

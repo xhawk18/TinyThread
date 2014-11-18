@@ -3,6 +3,7 @@
 
 
 LIST_T				g_timers;
+LIST_T				g_waked_timers;
 static volatile uint64_t	g_current_ticks;
 static volatile uint64_t	g_time_offset;	/* tt_set_time() only set this value */
 
@@ -33,6 +34,7 @@ uint64_t tt_set_time (uint64_t new_time)
 void tt_timer_init (uint32_t systick_frequency)
 {
 	listInit (&g_timers);
+	listInit (&g_waked_timers);
 	SysTick_Config (systick_frequency / TT_TICKS_PER_SECOND);
 }
 
@@ -118,14 +120,33 @@ void __tt_wakeup (void)
 
 		if (ticks_to_wakeup <= 0)
 		{
-			listDetach (&timer->list);
-			(*timer->on_timer) (timer->arg);
+			listMove (&g_waked_timers, &timer->list);
+			//listDetach (&timer->list);
+			//(*timer->on_timer) (timer->arg);
 		}
 		else
 			break;
 	}
 }
 
+void __tt_timer_run()
+{
+	LIST_T *list;
+	LIST_T *list_next;
+	for (list = listGetNext (&g_waked_timers); list != &g_waked_timers; list = list_next)
+	{
+		TT_TIMER_T *timer = GetParentAddr (list, TT_TIMER_T, list);
+		list_next = listGetNext (list);
+
+		listDetach (&timer->list);
+		(*timer->on_timer) (timer->arg);
+	}
+}
+
+bool __tt_timer_to_run()
+{
+	return !listIsEmpty(&g_waked_timers);
+}
 
 static void __tt_timer_start (TT_TIMER_T *timer,
 	void (*on_timer) (void *arg),
@@ -140,7 +161,7 @@ static void __tt_timer_start (TT_TIMER_T *timer,
 	tt_syscall ((void *)timer, __tt_add_timer);
 }
 
-/* Available in: thread. */
+/* Available in: irq, thread */
 void tt_timer_start (TT_TIMER_T *timer,
 	void (*on_timer) (void *arg),
 	void *arg,

@@ -34,8 +34,15 @@ __asm void PendSV_Handler ()
 
 	IMPORT	g_thread_current
 	IMPORT	g_thread_next
+	IMPORT	__tt_timer_run
 
-switch_start	
+switch_start
+	; Backup LR to call timer
+	PUSH	{LR}
+	BL __tt_timer_run
+	POP		{R0}
+	MOV		LR,R0
+	
 	; Backup next thread address to R12
 	LDR		R0, =g_thread_current	; Get pointer (current)
 	LDR		R1, =g_thread_next		; Get pointer (next)

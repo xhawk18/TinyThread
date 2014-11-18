@@ -29,6 +29,12 @@ void SVC_Handler (void *arg, void (*on_schedule) ())
 void PendSV_Handler ()
 {
 	__asm (
+		// Backup LR to call timer
+		"	PUSH	{LR}					\n"
+		"	BL		__tt_timer_run			\n"
+		"	POP		{R0}					\n"
+		"	MOV		LR,R0					\n"
+	
 		"switch_start:						\n"
 		// Backup next thread address to R12
 		"	LDR		R0, [PC,#4]				\n"	// Get pointer (current)

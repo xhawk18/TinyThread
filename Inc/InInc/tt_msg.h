@@ -89,11 +89,9 @@ int tt_bmsg_can_recv (TT_BMSG_QUEUE_T *msg_queue);
 void tt_bmsg_recv_free (TT_BMSG_QUEUE_T *msg_queue, void *msg_data);
 
 
-#define TT_BLOCK_MSG_BUFFER_SIZE(max_msg_num,each_msg_size) \
+#define TT_BMSG_BUFFER_SIZE(max_msg_num,each_msg_size) \
 	( \
-		sizeof (TT_BMSG_QUEUE_T) + \
-		sizeof (LIST_T) + \
-		MEMORYPOOL_SIZE ((GetOffsetSize(TT_BLOCK_MSG_T, msg_data) + (each_msg_size)), (max_msg_num)) \
+		sizeof (TT_MSG_QUEUE_T) + MEMORYPOOL_SIZE ((GetOffsetSize(TT_BMSG_T, msg_data) + (each_msg_size)), (max_msg_num)) \
 	)
 
 
