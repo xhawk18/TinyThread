@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #if defined __CC_ARM
 #	include "tt_sys_keil.c"
@@ -19,3 +23,6 @@
 #include "tt_sys.c"
 #include "tt_list.c"
 
+#ifdef __cplusplus
+}
+#endif

@@ -36,11 +36,11 @@ static void tt_set_irq_priority ()
 	int i;
 	
 	/* TinyThread need set the prioirty order --
-		(high) -> SVC -> SysTick -> Peripherals IRQ -> (low)
+		(high) -> SVC -> SysTick -> Peripherals IRQ -> PendSV (low)
 	   The default SVC and SysTick's priority is 0,
 	   so we set peripherals' priority to 1.
 	 */
-	const int priority = 1;
+	const unsigned int priority = 2;
 	
 
 #if defined __CM0_CMSIS_VERSION && __CM0_CMSIS_VERSION <= 0x00020000
@@ -65,7 +65,7 @@ static void tt_set_irq_priority ()
 #endif
 	
 	/* Make SysTick/SVCall have higest priority */
-	NVIC_SetPriority (SysTick_IRQn, 0);
+	NVIC_SetPriority (SysTick_IRQn, 1);
 	NVIC_SetPriority (SVCall_IRQn, 0);
 
 	/* Make PendSV have lowest priority */
@@ -136,8 +136,8 @@ static void tt_schedule_remove (void *arg)
 
 static void tt_link_thread_to_system(const char *name, TT_THREAD_T *thread)
 {
-	memcpy (thread->name, name, sizeof (thread->name));
-	thread->name[sizeof (thread->name) - 1] = '\0';
+	//memcpy (thread->name, name, sizeof (thread->name));
+	//thread->name[sizeof (thread->name) - 1] = '\0';
 
 	tt_disable_irq ();
 
@@ -305,14 +305,14 @@ static void tt_check_stack(TT_THREAD_T *thread)
 	{
 		if (thread->uSP < (uint32_t)thread->stack_limit)
 		{
-			tt_printf ("Stack down overflow for task: (%08x, %08x) %s\n", (int)thread, (int)thread->uSP, thread->name);
+			tt_printf ("Stack down overflow for task: (%08x, %08x)\n", (int)thread, (int)thread->uSP);
 			/* Indicate stack down overflow if run to here. */
 			while(1);
 		}
 		
 		if (thread->uSP > (uint32_t)thread->stack_base - sizeof (TT_THREAD_PUSH_STACK))
 		{
-			tt_printf ("Stack up overflow for task: (%08xk, %08x) %s\n", (int)thread, (int)thread->uSP, thread->name);
+			tt_printf ("Stack up overflow for task: (%08xk, %08x)\n", (int)thread, (int)thread->uSP);
 			/* Indicate stack up overflow if run to here,
 			   It rarely happens unless the program is damaged. */
 			while(1);
@@ -330,8 +330,6 @@ void __tt_schedule (void)
 	/* Check if thread stack is healty */
 	tt_check_stack(g_thread_current);
 #endif	// TT_SUPPORT_STACK_CHECK
-
-	__tt_wakeup ();
 	
 	for (priority = g_athread_high_priorty;
 		priority < TT_THREAD_PRIORITY_NUM;
@@ -354,7 +352,10 @@ void __tt_schedule (void)
 
 end:
 	if (g_thread_current != g_thread_next
-		|| __tt_timer_to_run())
+#ifndef TT_TIMER_FASTEST
+		|| __tt_timer_to_run()
+#endif
+		)
 		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 

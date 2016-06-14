@@ -74,7 +74,7 @@ typedef struct tagTT_THREAD
 #ifdef	TT_SUPPORT_DUMP_THREAD
 	LIST_T					list_threads;		//list node for the threads list
 #endif	
-	char					name[8];
+	//char					name[8];
 } TT_THREAD_T;
 
 
@@ -82,15 +82,15 @@ typedef struct tagTT_THREAD
 
 /* void (*on_schedule)(void) or void (*on_schedule)(void *arg) */
 #if defined __CC_ARM
-extern void __svc(0x18) tt_syscall (void *arg, void (*on_schedule) ());
+extern void __svc(0x18) tt_syscall (void *arg, void (*on_schedule) (void *arg));
 #elif defined __ICCARM__
 #	pragma swi_number=0x18
 __swi void tt_syscall (void *arg, void (*on_schedule) ());
 #else
 #if 0
-__attribute__ ((noinline)) void tt_syscall  (void *arg, void (*on_schedule) ());
+__attribute__ ((noinline)) void tt_syscall  (void *arg, void (*on_schedule) (void *arg));
 #else
-TT_INLINE void tt_syscall  (void *arg, void (*on_schedule) ())
+TT_INLINE void tt_syscall  (void *arg, void (*on_schedule) (void *arg))
 {
 	register int r0 __asm__ ("r0") = (int)arg;
 	register int r1 __asm__ ("r1") = (int)on_schedule;

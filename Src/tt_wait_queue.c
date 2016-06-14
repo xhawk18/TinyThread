@@ -46,7 +46,7 @@ void tt_wq_wait_event (TT_WQ_T *wait_queue)
 		for (i = 0; tt_is_irq_disabled (); ++i)
 			tt_enable_irq ();
 		
-		tt_syscall (NULL, __tt_schedule);
+		tt_syscall (NULL, (void (*)(void *))__tt_schedule);
 		
 		while (i-- != 0)
 			tt_disable_irq ();

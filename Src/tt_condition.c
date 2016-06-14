@@ -51,7 +51,7 @@ static void __tt_cond_wait (void *arg)
 	cond->wait_on_recursive_mutex	= wait_args->wait_on_recursive_mutex;
 
 	/* Unlock the mutex */
-	__tt_mutex_unlock ((void *)mutex, mutex->locked_thread);
+	__tt_mutex_unlock (mutex, mutex->locked_thread);
 
 	/* Suspend current thread and put it onto the waiting list. */
 	thread = tt_thread_self ();

@@ -22,7 +22,7 @@ __asm void tt_syscall (void *arg, void (*on_schedule) ())
 // Implement in tt_time.c
 //void SysTick_Handler ();
 
-void SVC_Handler (void *arg, void (*on_schedule) ())
+void SVC_Handler (void *arg, void (*on_schedule) (void *arg))
 {
 	on_schedule (arg);
 }
@@ -34,14 +34,16 @@ __asm void PendSV_Handler ()
 
 	IMPORT	g_thread_current
 	IMPORT	g_thread_next
-	IMPORT	__tt_timer_run
 
 switch_start
+#ifndef TT_TIMER_FASTEST
 	; Backup LR to call timer
+	IMPORT	__tt_timer_run
 	PUSH	{LR}
 	BL __tt_timer_run
 	POP		{R0}
 	MOV		LR,R0
+#endif
 	
 	; Backup next thread address to R12
 	LDR		R0, =g_thread_current	; Get pointer (current)

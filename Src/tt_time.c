@@ -5,17 +5,24 @@
 LIST_T				g_timers;
 LIST_T				g_waked_timers;
 static volatile uint64_t	g_current_ticks;
-static volatile uint64_t	g_time_offset;	/* tt_set_time() only set this value */
+static volatile uint64_t	g_time_offset;				/* tt_set_time() only set this value */
 
+/* Why TT_TICKS_DEVIDER use (4096*1024),
+   to use this value, maximum of g_TT_TICKS_PER_SECOND_1 is (4096*1024),
+   1000*g_TT_TICKS_PER_SECOND_1 < pow(2,32), and will not overflow in tt_ticks_to_msec
+ */
+#define TT_TICKS_DEVIDER	(4096*1024)
+static volatile uint64_t	g_TT_TICKS_PER_SECOND_1;	/*  TT_TICKS_DEVIDER/TT_TICKS_PER_SECOND for fast devision */
 
-void SysTick_Handler ()
+void SysTick_Handler()
 {
 	g_current_ticks++;
+	__tt_wakeup ();
 	__tt_schedule_yield (NULL);
 }
 
 
-uint64_t tt_get_time (void)
+uint64_t tt_get_time(void)
 {
 	uint64_t u64_ticks_offset = g_time_offset * TT_TICKS_PER_SECOND;
 	uint64_t u64_sec = (g_current_ticks + u64_ticks_offset) / TT_TICKS_PER_SECOND;
@@ -23,7 +30,7 @@ uint64_t tt_get_time (void)
 }
 
 
-uint64_t tt_set_time (uint64_t new_time)
+uint64_t tt_set_time(uint64_t new_time)
 {
 	uint64_t rt = g_time_offset;
 	g_time_offset = new_time;
@@ -31,26 +38,28 @@ uint64_t tt_set_time (uint64_t new_time)
 }
 
 
-void tt_timer_init (uint32_t systick_frequency)
+void tt_timer_init(uint32_t systick_frequency)
 {
 	listInit (&g_timers);
 	listInit (&g_waked_timers);
-	SysTick_Config (systick_frequency / TT_TICKS_PER_SECOND);
+
+	g_TT_TICKS_PER_SECOND_1 = TT_TICKS_DEVIDER / TT_TICKS_PER_SECOND;
+	SysTick_Config(systick_frequency / TT_TICKS_PER_SECOND);
 }
 
 
 
 /* Available in: irq, thread. */
-uint32_t tt_get_ticks (void)
+uint32_t tt_get_ticks(void)
 {
 	return g_current_ticks;
 }
 
 
 /* Available in: irq, thread. */
-uint32_t tt_ticks_to_msec (uint32_t ticks)
+uint32_t tt_ticks_to_msec(uint32_t ticks)
 {
-	uint64_t u64_msec = 1000 * (uint64_t)ticks / TT_TICKS_PER_SECOND;
+	uint64_t u64_msec = 1000 * (uint64_t)ticks * g_TT_TICKS_PER_SECOND_1 / TT_TICKS_DEVIDER;
 	uint32_t msec = (u64_msec >  (uint64_t)~(uint32_t)0
 		? ~(uint32_t)0 : (uint32_t)u64_msec);
 	return msec;
@@ -58,7 +67,7 @@ uint32_t tt_ticks_to_msec (uint32_t ticks)
 
 
 /* Available in: irq, thread. */
-uint32_t tt_msec_to_ticks (uint32_t msec)
+uint32_t tt_msec_to_ticks(uint32_t msec)
 {
 	uint64_t u64_ticks = TT_TICKS_PER_SECOND * (uint64_t)msec / 1000;
 	uint32_t ticks = (u64_ticks > (uint64_t)(uint32_t)0xFFFFFFFF
@@ -68,7 +77,7 @@ uint32_t tt_msec_to_ticks (uint32_t msec)
 }
 
 
-static void __tt_add_timer (void *arg)
+static void __tt_add_timer(void *arg)
 {
 	LIST_T *list;
 	TT_TIMER_T *me = (TT_TIMER_T *)arg;
@@ -84,16 +93,16 @@ static void __tt_add_timer (void *arg)
 			break;
 	}
 
-	listMove (list, &me->list);
+	listMove(list, &me->list);
 }
 
-static void __tt_del_timer (void *arg)
+static void __tt_del_timer(void *arg)
 {
 	TT_TIMER_T *me = (TT_TIMER_T *)arg;
 	listDetach (&me->list);
 }
 
-static void __tt_wait_timer (void *arg)
+static void __tt_wait_timer(void *arg)
 {
 	TT_TIMER_T *me = (TT_TIMER_T *)arg;
 	if (tt_timer_is_active (me))
@@ -107,39 +116,52 @@ static void __tt_wait_timer (void *arg)
 	}
 }
 
-void __tt_wakeup (void)
+void __tt_wakeup(void)
 {
 	LIST_T *list;
 	LIST_T *list_next;
 	uint32_t current_ticks = tt_get_ticks ();
-	for (list = listGetNext (&g_timers); list != &g_timers; list = list_next)
+	for (list = listGetNext(&g_timers); list != &g_timers; list = list_next)
 	{
-		TT_TIMER_T *timer = GetParentAddr (list, TT_TIMER_T, list);
+		TT_TIMER_T *timer = GetParentAddr(list, TT_TIMER_T, list);
 		int32_t ticks_to_wakeup = (int32_t)(timer->wakeup_ticks - current_ticks);
-		list_next = listGetNext (list);
+		list_next = listGetNext(list);
 
-		if (ticks_to_wakeup <= 0)
+		if(ticks_to_wakeup <= 0)
 		{
-			listMove (&g_waked_timers, &timer->list);
-			//listDetach (&timer->list);
-			//(*timer->on_timer) (timer->arg);
+			listMove(&g_waked_timers, &timer->list);
 		}
 		else
 			break;
 	}
+	
+#ifdef TT_TIMER_FASTEST
+	for (list = listGetNext(&g_waked_timers); list != &g_waked_timers; list = list_next){
+		TT_TIMER_T *timer = GetParentAddr(list, TT_TIMER_T, list);
+		list_next = listGetNext(list);
+		listDetach(&timer->list);
+		(*timer->on_timer)(timer->arg);
+	}
+#endif	
 }
 
+#ifndef TT_TIMER_FASTEST
 void __tt_timer_run()
 {
-	LIST_T *list;
-	LIST_T *list_next;
-	for (list = listGetNext (&g_waked_timers); list != &g_waked_timers; list = list_next)
-	{
-		TT_TIMER_T *timer = GetParentAddr (list, TT_TIMER_T, list);
-		list_next = listGetNext (list);
+	while(1){
+		LIST_T *list;
+		TT_TIMER_T *timer = NULL;
+		tt_disable_irq();
+		list = listGetNext (&g_waked_timers);
+		if(list != &g_waked_timers){
+			timer = GetParentAddr (list, TT_TIMER_T, list);
+			listDetach (&timer->list);
+		}
+		tt_enable_irq();
 
-		listDetach (&timer->list);
-		(*timer->on_timer) (timer->arg);
+		if(timer != NULL)
+			(*timer->on_timer) (timer->arg);
+		else break;
 	}
 }
 
@@ -147,13 +169,23 @@ bool __tt_timer_to_run()
 {
 	return !listIsEmpty(&g_waked_timers);
 }
+#else
+//This should be removed!
+void __tt_timer_run()
+{
+}
+#endif
 
-static void __tt_timer_start (TT_TIMER_T *timer,
-	void (*on_timer) (void *arg),
+void tt_timer_create(TT_TIMER_T *timer){
+	listInit (&timer->list);	
+}
+
+/* Available in: irq, thread */
+void tt_timer_restart2(TT_TIMER_T *timer,
+	void (*on_timer)(void *arg),
 	void *arg,
 	uint32_t ticks)
 {
-	listInit (&timer->list);
 	timer->on_timer 	= on_timer;
 	timer->arg			= arg;
 	timer->wakeup_ticks	= ticks;
@@ -162,12 +194,31 @@ static void __tt_timer_start (TT_TIMER_T *timer,
 }
 
 /* Available in: irq, thread */
-void tt_timer_start (TT_TIMER_T *timer,
-	void (*on_timer) (void *arg),
+void tt_timer_restart(TT_TIMER_T *timer,
+	void (*on_timer)(void *arg),
 	void *arg,
 	uint32_t msec)
 {
-	__tt_timer_start (timer, on_timer, arg, tt_msec_to_ticks (msec));
+	tt_timer_restart2(timer, on_timer, arg, tt_msec_to_ticks (msec));
+}
+
+/* Available in: irq, thread */
+void tt_timer_start2(TT_TIMER_T *timer,
+	void (*on_timer)(void *arg),
+	void *arg,
+	uint32_t ticks)
+{
+	tt_timer_create (timer);
+	tt_timer_restart2 (timer, on_timer, arg, ticks);
+}
+
+/* Available in: irq, thread */
+void tt_timer_start(TT_TIMER_T *timer,
+	void (*on_timer)(void *arg),
+	void *arg,
+	uint32_t msec)
+{
+	tt_timer_start2(timer, on_timer, arg, tt_msec_to_ticks (msec));
 }
 
 /* Available in: irq, thread */
@@ -177,35 +228,43 @@ void tt_timer_kill (TT_TIMER_T *timer)
 }
 
 /* Available in: thread */
-void tt_timer_wait (TT_TIMER_T *timer)
+void tt_timer_wait(TT_TIMER_T *timer)
 {
 	tt_syscall ((void *)timer, __tt_wait_timer);
 }
 
-static void __tt_wakeup_thread (void *arg)
+static void __tt_wakeup_thread(void *arg)
 {
 	TT_THREAD_T *thread = (TT_THREAD_T *)arg;
 	tt_set_thread_running (thread);
 }
 
-void tt_sleep (uint32_t sec)
+void tt_sleep(uint32_t sec)
 {
 	TT_TIMER_T timer;
 	uint64_t u64_ticks = TT_TICKS_PER_SECOND * (uint64_t)sec;
 	uint32_t sleep_ticks = (u64_ticks > (uint64_t)(uint32_t)0xFFFFFFFF
 		? (uint32_t)0xFFFFFFFF : (uint32_t)u64_ticks);
 
-	__tt_timer_start (&timer, __tt_wakeup_thread, tt_thread_self (), sleep_ticks);	
-	tt_timer_wait (&timer);
+	tt_timer_start2(&timer, __tt_wakeup_thread, tt_thread_self (), sleep_ticks);	
+	tt_timer_wait(&timer);
 }
 
 
 /* ticks >= 0 && < 2^31 */
-void tt_msleep (uint32_t msec)
+void tt_msleep(uint32_t msec)
 {
 	TT_TIMER_T timer;
-	tt_timer_start (&timer, __tt_wakeup_thread, tt_thread_self (), msec);
-	tt_timer_wait (&timer);
+	tt_timer_start(&timer, __tt_wakeup_thread, tt_thread_self (), msec);
+	tt_timer_wait(&timer);
+}
+
+/* ticks >= 0 && < 2^31 */
+void tt_tsleep(uint32_t ticks)
+{
+	TT_TIMER_T timer;
+	tt_timer_start2(&timer, __tt_wakeup_thread, tt_thread_self (), ticks);
+	tt_timer_wait(&timer);
 }
 
 
